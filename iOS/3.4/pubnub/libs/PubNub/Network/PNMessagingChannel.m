@@ -304,11 +304,11 @@
     }
 }
 
-- (void)restoreSubscription:(BOOL)shouldResubscribe {
+- (void)restoreSubscription:(BOOL)shouldRestoreResubscriptionFromLastTimeToken {
 
     if ([self.subscribedChannelsSet count]) {
 
-        if (shouldResubscribe) {
+        if (!shouldRestoreResubscriptionFromLastTimeToken) {
 
             // Reset last update time token for channels in list
             [self.subscribedChannelsSet makeObjectsPerformSelector:@selector(resetUpdateTimeToken)];
@@ -319,7 +319,8 @@
 
         [self scheduleRequest:[PNSubscribeRequest subscribeRequestForChannels:[self.subscribedChannelsSet allObjects]
                                                                 byUserRequest:YES]
-      shouldObserveProcessing:shouldResubscribe];
+      shouldObserveProcessing:shouldRestoreResubscriptionFromLastTimeToken];
+
     }
 }
 
@@ -411,6 +412,10 @@
         [self handleLeaveRequestCompletionForChannels:subscribedChannels
                                          withResponse:nil
                                         byUserRequest:isLeavingByUserRequest];
+
+
+        // Reconnect messaging channel to free up long-poll on server
+        [self reconnect];
     }
 
 

@@ -13,7 +13,11 @@
 @implementation AppDelegate
 
 - (void)pubnubClient:(PubNub *)client didReceiveMessage:(PNMessage *)message {
-    PNLog(PNLogGeneralLevel,self,@"PubNub client received message: %@", message);
+    PNLog(PNLogGeneralLevel,self,@"PubNub client got it message: %@", message);
+}
+
+- (void)pubnubClient:(PubNub *)client didReceivePresenceEvent:(PNPresenceEvent *)event {
+    PNLog(PNLogGeneralLevel,self,@"PubNub client received event: %@", event);
 }
 
 
@@ -25,7 +29,7 @@
     self.window.rootViewController = self.viewController;
     [self.window makeKeyAndVisible];
     
-    [PubNub setDelegate:self];
+    [PubNub setDelegate:(id<PNDelegate>)self];
     return YES;
 }
 

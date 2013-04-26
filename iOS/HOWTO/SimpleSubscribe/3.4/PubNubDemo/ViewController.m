@@ -13,11 +13,6 @@
 
 @implementation ViewController
 
-//withCompletionHandlingBlock:^(PNSubscriptionProcessState state, NSArray *channels, PNError *subscriptionError) {
-//    
-//    
-//    [self onSubscribeComplete:state channels:channels error:subscriptionError];
-//    
 - (void)onSubscribeComplete:(PNSubscriptionProcessState)state forChannels:(NSArray *)channels forError:(PNError *)error {
     
     
@@ -62,17 +57,24 @@
                               }
                           }];
     
+    
+
+    
+    //                                 // wait 1 second
+         int64_t delayInSeconds = 5.0;
+         dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC); dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+             PNLog(PNLogGeneralLevel, self, @"enabling channels!!!");
+              [PubNub enablePresenceObservationForChannels:channels];
+         });
 }
+
+
+
 
 
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
-
-    
-    
-    
     
     [PubNub setConfiguration:[PNConfiguration defaultConfiguration]];
     [PubNub setClientIdentifier:@"myUniqueID"];
@@ -90,24 +92,28 @@
     
         PNChannel *sendChannelA, *sendChannelB, *sendChannelC, *sendChannelD = nil;
         sendChannelA = [PNChannel channelWithName:@"mp1" shouldObservePresence:YES];
-        sendChannelB = [PNChannel channelWithName:@"mp2" shouldObservePresence:YES];
-        sendChannelC = [PNChannel channelWithName:@"mp3" shouldObservePresence:YES];
-        sendChannelD = [PNChannel channelWithName:@"mp4" shouldObservePresence:YES];
+       
+
 
 //      sendChannel = [PNChannel channelWithName:@"mp1"];
         
         
         // Subscribe
         
-//        [PubNub subscribeOnChannel:sendChannelA withCompletionHandlingBlock:^(PNSubscriptionProcessState state, NSArray *channels, PNError *subscriptionError) {
-//            [self onSubscribeComplete:state forChannels:channels forError:subscriptionError];
-//        }];  
+        [PubNub subscribeOnChannel:sendChannelA withCompletionHandlingBlock:^(PNSubscriptionProcessState state, NSArray *channels, PNError *subscriptionError) {
+            int64_t delayInSeconds = 5.0;
+            dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC); dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+                PNLog(PNLogGeneralLevel, self, @"enabling channels!!!");
+                [PubNub enablePresenceObservationForChannels:channels];
+            });
+        }];
+        
 //        [PubNub subscribeOnChannel:sendChannelB withCompletionHandlingBlock:^(PNSubscriptionProcessState state, NSArray *channels, PNError *subscriptionError) {
 //            [self onSubscribeComplete:state forChannels:channels forError:subscriptionError];
 //        }];
     
-        [PubNub subscribeOnChannel:sendChannelA];
-        [PubNub subscribeOnChannel:sendChannelB];
+        //[PubNub subscribeOnChannel:sendChannelA];
+        //[PubNub subscribeOnChannel:sendChannelB];
 
     
     }

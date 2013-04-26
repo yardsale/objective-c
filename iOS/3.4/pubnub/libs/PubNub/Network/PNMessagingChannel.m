@@ -259,7 +259,7 @@
 
     // Retrieve set of channels (including presence observers) from
     // which client should unsubscribe
-    NSArray *channelsForUnsubscribe = [self channelsWithOutPresenceFromList:[channelsSet allObjects]];
+    NSArray *channelsForUnsubscribe = [[self channelsWithPresenceFromList:[channelsSet allObjects]] allObjects];
     if ([channelsForUnsubscribe count] > 0) {
 
         // Reset last update time token for channels in list
@@ -360,11 +360,22 @@
         NSMutableSet *filteredChannels = [self.subscribedChannelsSet mutableCopy];
         [filteredChannels intersectSet:channelsSet];
         [channelsSet minusSet:filteredChannels];
+
+
+        // Checking whether there still channels on which client not subscribed yet
+        if ([channelsSet count] > 0 && !withPresenceEvent) {
+
+            // Reset last update time token for channels in list
+            [channelsSet makeObjectsPerformSelector:@selector(resetUpdateTimeToken)];
+        }
     }
 
     // Check whether client already was subscribed on channels before
     BOOL shouldReconnect = [self.subscribedChannelsSet count] > 0 && !self.isRestoringSubscription;
+    if ([self.subscribedChannelsSet count] > 0 && withPresenceEvent) {
 
+        shouldReconnect = NO;
+    }
 
     // In case if client currently connected to
     // PubNub services, we should send leave event
@@ -405,9 +416,6 @@
     }
     else {
 
-        // Reset last update time token for channels in list
-        [self.subscribedChannelsSet makeObjectsPerformSelector:@selector(resetUpdateTimeToken)];
-
         [self handleLeaveRequestCompletionForChannels:subscribedChannels
                                          withResponse:nil
                                         byUserRequest:isLeavingByUserRequest];
@@ -433,15 +441,13 @@
 
     // Retrieve list of channels which will left after unsubscription
     NSMutableSet *currentlySubscribedChannels = [self.subscribedChannelsSet mutableCopy];
-    [currentlySubscribedChannels minusSet:[self channelsWithPresenceFromList:channels]];
+    NSSet *channelsWithPresence = [self channelsWithPresenceFromList:channels];
+    [currentlySubscribedChannels minusSet:channelsWithPresence];
 
 
     if (withPresenceEvent) {
 
-        // Reset last update time token for channels in list
-        [currentlySubscribedChannels makeObjectsPerformSelector:@selector(resetUpdateTimeToken)];
-
-        [self leaveChannels:channels byUserRequest:isLeavingByUserRequest];
+        [self leaveChannels:[channelsWithPresence allObjects] byUserRequest:isLeavingByUserRequest];
     }
     else {
 
@@ -455,12 +461,12 @@
 
         PNSubscribeRequest *subscribeRequest = [PNSubscribeRequest subscribeRequestForChannels:[currentlySubscribedChannels allObjects]
                                                                         byUserRequest:isLeavingByUserRequest];
-        subscribeRequest.closeConnection = YES;
+        subscribeRequest.closeConnection = !withPresenceEvent;
 
         // Resubscribe on rest of channels which is left after unsubscribe
         [self scheduleRequest:subscribeRequest shouldObserveProcessing:NO];
     }
-    else {
+    else if(!withPresenceEvent) {
 
         [self reconnect];
     }
@@ -474,7 +480,7 @@
     PNChannelPresence *presenceObserver = [channel presenceObserver];
 
 
-    return presenceObserver != nil && [self.subscribedChannelsSet containsObject:presenceObserver];;
+    return presenceObserver != nil && [self.subscribedChannelsSet containsObject:presenceObserver];
 }
 
 - (void)enablePresenceObservationForChannels:(NSArray *)channels {
@@ -518,7 +524,8 @@
 
     if (isLeavingByUserRequest) {
 
-        [self.messagingDelegate messagingChannel:self didUnsubscribeFromChannels:channels];
+        [self.messagingDelegate messagingChannel:self
+                      didUnsubscribeFromChannels:[self channelsWithOutPresenceFromList:channels]];
     }
 }
 
@@ -719,10 +726,14 @@
                                                BOOL *channelEnumeratorStop) {
 
         [fullChannelsList addObject:channel];
-        PNChannelPresence *presenceObserver = [channel presenceObserver];
-        if (presenceObserver) {
 
-            [fullChannelsList addObject:presenceObserver];
+        if (channel.isUserDefinedPresenceObservation) {
+
+            PNChannelPresence *presenceObserver = [channel presenceObserver];
+            if (presenceObserver) {
+
+                [fullChannelsList addObject:presenceObserver];
+            }
         }
     }];
 

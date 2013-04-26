@@ -91,7 +91,7 @@
         });
     
         PNChannel *sendChannelA, *sendChannelB, *sendChannelC, *sendChannelD = nil;
-        sendChannelA = [PNChannel channelWithName:@"mp1" shouldObservePresence:YES];
+        sendChannelA = [PNChannel channelWithName:@"mp1" shouldObservePresence:NO];
        
 
 

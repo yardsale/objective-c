@@ -22,18 +22,18 @@
 #pragma mark - Properties
 
 // Stores reference on services host name
-@property (nonatomic, copy) NSString *origin;
+@property(nonatomic, copy) NSString *origin;
 
 // Stores reference on original origin host address
 // (this property is used when DNS killer is required)
-@property (nonatomic, copy) NSString *realOrigin;
+@property(nonatomic, copy) NSString *realOrigin;
 
 // Stores reference on keys which is required
 // to establish connection and send packets to it
-@property (nonatomic, copy) NSString *publishKey;
-@property (nonatomic, copy) NSString *subscriptionKey;
-@property (nonatomic, copy) NSString *secretKey;
-@property (nonatomic, copy) NSString *cipherKey;
+@property(nonatomic, copy) NSString *publishKey;
+@property(nonatomic, copy) NSString *subscriptionKey;
+@property(nonatomic, copy) NSString *secretKey;
+@property(nonatomic, copy) NSString *cipherKey;
 
 
 @end
@@ -47,7 +47,7 @@
 #pragma mark - Class methods
 
 + (PNConfiguration *)defaultConfiguration {
-    
+
     return [self configurationForOrigin:kPNOriginHost
                              publishKey:kPNPublishKey
                            subscribeKey:kPNSubscriptionKey
@@ -58,7 +58,7 @@
 + (PNConfiguration *)configurationWithPublishKey:(NSString *)publishKey
                                     subscribeKey:(NSString *)subscribeKey
                                        secretKey:(NSString *)secretKey {
-    
+
     return [self configurationForOrigin:kPNDefaultOriginHost
                              publishKey:publishKey
                            subscribeKey:subscribeKey
@@ -69,7 +69,7 @@
                                  publishKey:(NSString *)publishKey
                                subscribeKey:(NSString *)subscribeKey
                                   secretKey:(NSString *)secretKey {
-    
+
     return [self configurationForOrigin:originHostName
                              publishKey:publishKey
                            subscribeKey:subscribeKey
@@ -82,7 +82,7 @@
                                subscribeKey:(NSString *)subscribeKey
                                   secretKey:(NSString *)secretKey
                                   cipherKey:(NSString *)cipherKey {
-    
+
     return [[[self class] alloc] initWithOrigin:originHostName
                                      publishKey:publishKey
                                    subscribeKey:subscribeKey
@@ -99,16 +99,16 @@
         subscribeKey:(NSString *)subscribeKey
            secretKey:(NSString *)secretKey
            cipherKey:(NSString *)cipherKey {
-    
+
     // Checking whether initialization was successful or not
-    if((self = [super init])) {
-        
-        self.origin = ([originHostName length] > 0)?originHostName:kPNDefaultOriginHost;
+    if ((self = [super init])) {
+
+        self.origin = ([originHostName length] > 0) ? originHostName : kPNDefaultOriginHost;
         self.realOrigin = self.origin;
-        self.publishKey = publishKey?publishKey:@"";
-        self.subscriptionKey = subscribeKey?subscribeKey:@"";
-        self.secretKey = secretKey?secretKey:@"0";
-        self.cipherKey = cipherKey?cipherKey:@"";
+        self.publishKey = publishKey ? publishKey : @"";
+        self.subscriptionKey = subscribeKey ? subscribeKey : @"";
+        self.secretKey = secretKey ? secretKey : @"0";
+        self.cipherKey = cipherKey ? cipherKey : @"";
         self.useSecureConnection = kPNSecureConnectionRequired;
         self.autoReconnectClient = kPNShouldAutoReconnectClient;
         self.reduceSecurityLevelOnError = kPNShouldReduceSecurityLevelOnError;
@@ -124,8 +124,8 @@
             PNLog(PNLogGeneralLevel, self, @"\n{WARN} Before running in production, please contact support@pubnub.com for your custom origin.\nPlease set the origin from %@ to IUNDERSTAND.pubnub.com to remove this warning.", self.origin);
         }
     }
-    
-    
+
+
     return self;
 }
 
@@ -138,7 +138,7 @@
 
         // Checking whether critical configuration information has been changed or not
         if ((self.shouldUseSecureConnection != configuration.shouldUseSecureConnection) ||
-            ![self.origin isEqualToString:configuration.origin]) {
+                ![self.origin isEqualToString:configuration.origin]) {
 
             shouldReset = YES;
         }
@@ -152,7 +152,7 @@
     if (shouldKillDNSCache) {
 
         NSString *subDomain = [self.realOrigin stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@".%@",
-                                                                                     kPNServiceMainDomain]
+                                                                                                               kPNServiceMainDomain]
                                                                          withString:@""];
 
         self.origin = [NSString stringWithFormat:@"%@-%d.%@", subDomain, PNRandomInteger(), kPNServiceMainDomain];
@@ -164,28 +164,28 @@
 }
 
 - (BOOL)isValid {
-    
+
     BOOL isValid = YES;
-    
-    
+
+
     // Check whether publish/subscription/secret keys are valid or not
-    isValid = isValid?([self.publishKey length] > 0):isValid;
-    isValid = isValid?([self.subscriptionKey length] > 0):isValid;
-    isValid = isValid?([self.secretKey length] > 0):isValid;
-    
-    
+    isValid = isValid ? ([self.publishKey length] > 0) : isValid;
+    isValid = isValid ? ([self.subscriptionKey length] > 0) : isValid;
+    isValid = isValid ? ([self.secretKey length] > 0) : isValid;
+
+
     return isValid;
 }
 
 - (NSString *)description {
-    
+
     return [NSString stringWithFormat:@"\nConfiguration for: %@ (secured: %@)\nPublish key (Required): %@\nSubscription key (Required): %@\nSecret key (Required): %@\nCipher key: %@",
-            self.origin,
-            self.shouldUseSecureConnection?@"YES":@"NO",
-            ([self.publishKey length] > 0)?self.publishKey:@"-missing-",
-            ([self.subscriptionKey length] > 0)?self.subscriptionKey:@"-missing-",
-            ([self.secretKey length] > 0)?self.secretKey:@"missing",
-            ([self.cipherKey length] > 0)?self.cipherKey:@"-no encription key-"];
+                                      self.origin,
+                                      self.shouldUseSecureConnection ? @"YES" : @"NO",
+                                      ([self.publishKey length] > 0) ? self.publishKey : @"-missing-",
+                                      ([self.subscriptionKey length] > 0) ? self.subscriptionKey : @"-missing-",
+                                      ([self.secretKey length] > 0) ? self.secretKey : @"missing",
+                                      ([self.cipherKey length] > 0) ? self.cipherKey : @"-no encription key-"];
 }
 
 #pragma mark -

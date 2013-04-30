@@ -15,7 +15,6 @@
 #pragma mark Properties
 
 @property (nonatomic, strong) UIWindow *window;
-
 #pragma mark -
 
 

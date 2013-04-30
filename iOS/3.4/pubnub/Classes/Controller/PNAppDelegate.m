@@ -36,7 +36,6 @@
 
 @implementation PNAppDelegate
 
-
 #pragma mark - Instance methods
 
 - (void)initializePubNubClient {
@@ -154,20 +153,55 @@
     }
 }
 
-- (void)pubnubClient:(PubNub *)client didConnectToOrigin:(NSString *)origin {
+- (void)pubnubClient:(PubNub *)client didConnectToOrigin:(NSString*)origin {
 
-    if (self.isDisconnectedOnNetworkError) {
+    int64_t delayInSeconds = 5.0f; dispatch_time_t popTime =
+            dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
 
-        PNLog(PNLogGeneralLevel, self, @"PubNub client restored connection to PubNub origin at: %@", origin);
-    }
-    else {
+        NSLog(@"---------------- SUBSCRIBE --------------");
+        PNChannel *sendChannel = [PNChannel channelWithName:@"a" shouldObservePresence:YES];
+        [PubNub subscribeOnChannels:[PNChannel channelsWithNames:[self channels]] withCompletionHandlingBlock:^(PNSubscriptionProcessState state, NSArray *channels, PNError *subscriptionError) { //self channels includes the send channel
+            //_hubConnected = YES;
+            NSLog(@"channels: %@", channels);
 
-        PNLog(PNLogGeneralLevel, self, @"PubNub client successfully connected to PubNub origin at: %@", origin);
-    }
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                int64_t delayInSeconds2 = 5.0f; dispatch_time_t popTime2 = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds2 * NSEC_PER_SEC);
+                dispatch_after(popTime2, dispatch_get_main_queue(), ^(void) {
+                    NSLog(@"---------------- ENABLE PRESENCE ----------------");
+                    [PubNub enablePresenceObservationForChannels:channels];
 
+                    [PubNub requestParticipantsListForChannel:sendChannel withCompletionBlock:^(NSArray *participants, PNChannel *channel, PNError *error) {
+                        if(error) {
+                            NSLog(@"Error grabbing participants: %@", error.localizedDescription);
+                        } else {
+                            NSLog(@"participants: %@", participants);
+                            BOOL gatewayOnline = NO;
+                            for(NSString *uuid in participants) {
+//                                if([_app.currentGateway.gatewayId isEqualToString:uuid]) {
+//                                    gatewayOnline = YES;
+//                                    break;
+//                                }
+                            }
 
-    self.disconnectedOnNetworkError = NO;
+//                            _hubConnected = gatewayOnline;
+//                            if(!_hubConnected) {
+//                                NSError *error = [NSError errorWithDomain:@"Revolv" code:404 userInfo:@{NSLocalizedDescriptionKey: @"Gateway is not online."}];
+//                                for(NSNumber *key in [_connectionErrorUpdateHandlers allKeys]) {
+//                                    void(^update)(NSError *error) = [_connectionErrorUpdateHandlers objectForKey:key];
+//                                    update(error);
+//                                }
+//                            }
+                        }
+                    }];
+                });
+            });
+
+        }];
+    });
 }
+
+
 
 - (void)pubnubClient:(PubNub *)client connectionDidFailWithError:(PNError *)error {
     

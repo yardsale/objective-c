@@ -19,76 +19,80 @@ static NSInteger const kPNUnknownError = -1;
 // configured and can't process his work
 static NSInteger const kPNClientConfigurationError = 100;
 
+// PubNub client find out that it wasn't fully
+// configured for publishing message
+static NSInteger const kPNClientConfigurationPublishKeyError = 101;
+
 // PubNub client tried to connect while it already
 // has opened connection to PubNub services
-static NSInteger const kPNClientTriedConnectWhileConnectedError = 101;
+static NSInteger const kPNClientTriedConnectWhileConnectedError = 102;
 
 // PubNub client failed to connect to PubNub services
 // because internet went down
-static NSInteger const kPNClientConnectionFailedOnInternetFailureError = 102;
+static NSInteger const kPNClientConnectionFailedOnInternetFailureError = 103;
 
 // PubNub client disconnected because of network issues
-static NSInteger const kPNClientConnectionClosedOnInternetFailureError = 103;
+static NSInteger const kPNClientConnectionClosedOnInternetFailureError = 104;
 
 // PubNub client failed to execute request because there is
 // no connection which can be used to reach PubNub services
-static NSInteger const kPNRequestExecutionFailedOnInternetFailureError = 104;
+static NSInteger const kPNRequestExecutionFailedOnInternetFailureError = 105;
 
 // PubNub client failed to execute request because of client
 // not ready
-static NSInteger const kPNRequestExecutionFailedClientNotReadyError = 105;
+static NSInteger const kPNRequestExecutionFailedClientNotReadyError = 106;
 
 // PubNub client failed to execute request because of timeout
-static NSInteger const kPNRequestExecutionFailedByTimeoutError = 106;
+static NSInteger const kPNRequestExecutionFailedByTimeoutError = 107;
 
 // PubNub client failed to use presence API because it
 // is not enabled in used account
-static NSInteger const kPNPresenceAPINotAvailableError = 107;
+static NSInteger const kPNPresenceAPINotAvailableError = 108;
 
 // PubNub service refuse to process request because it has
 // wrong JSON format
-static NSInteger const kPNInvalidJSONError = 108;
+static NSInteger const kPNInvalidJSONError = 109;
 
 // PubNub service refuse to process request because it has
 // wrong subscribe/publish key
-static NSInteger const kPNInvalidSubscribeOrPublishKeyError = 109;
+static NSInteger const kPNInvalidSubscribeOrPublishKeyError = 110;
 
 // PubNub service refuse to process message sending because
 // it is too long
-static NSInteger const kPNTooLongMessageError = 110;
+static NSInteger const kPNTooLongMessageError = 111;
 
 // PubNub service reported that restricted characters has been
 // used in channel name and request can't be processed
-static NSInteger const kPNRestrictedCharacterInChannelNameError = 111;
+static NSInteger const kPNRestrictedCharacterInChannelNameError = 112;
 
 
 #pragma mark - Cryptography error
 
 // Developer tried to initalize Cryptor helper with configuraiton
 // which doesn't has cipher key in it
-static NSInteger const kPNCryptoEmptyCipherKeyError = 112;
+static NSInteger const kPNCryptoEmptyCipherKeyError = 113;
 
 // Error occured during cryptor initialization because of error
 // in provided paramteres
-static NSInteger const kPNCryptoIllegalInitializationParametersError = 113;
+static NSInteger const kPNCryptoIllegalInitializationParametersError = 114;
 
 // Error occured because buffer with insufficient size was
 // provided for encrypted/decrypted data output
-static NSInteger const kPNCryptoInsufficentBufferSizeError = 114;
+static NSInteger const kPNCryptoInsufficentBufferSizeError = 115;
 
 // Error occure in case if during cryptor operation there was not enough
 // memory for it's operation
-static NSInteger const kPNCryptoInsufficentMemoryError = 115;
+static NSInteger const kPNCryptoInsufficentMemoryError = 116;
 
 // Error occured because input data wasn't properly alligned
-static NSInteger const kPNCryptoAligmentInputDataError = 116;
+static NSInteger const kPNCryptoAligmentInputDataError = 117;
 
 // Error occured during input data encode/decode process
-static NSInteger const kPNCryptoInputDataProcessingError = 117;
+static NSInteger const kPNCryptoInputDataProcessingError = 118;
 
 // Error occure if developer try to use one of features which is not
 // available in specified algorithm
-static NSInteger const kPNCryptoUnavailableFeatureError = 118;
+static NSInteger const kPNCryptoUnavailableFeatureError = 119;
 
 
 

@@ -55,6 +55,15 @@
                               cipherKey:kPNCipherKey];
 }
 
++ (PNConfiguration *)configurationWithSubscribeKey:(NSString *)subscribeKey {
+
+    return [self configurationForOrigin:kPNOriginHost
+                                 publishKey:kPNPublishKey
+                               subscribeKey:subscribeKey
+                                  secretKey:kPNSecretKey
+                                  cipherKey:kPNCipherKey];
+}
+
 + (PNConfiguration *)configurationWithPublishKey:(NSString *)publishKey
                                     subscribeKey:(NSString *)subscribeKey
                                        secretKey:(NSString *)secretKey {
@@ -166,16 +175,17 @@
 
 - (BOOL)isValid {
     
-    BOOL isValid = YES;
-    
-    
-    // Check whether publish/subscription/secret keys are valid or not
-    isValid = isValid?([self.publishKey length] > 0):isValid;
-    isValid = isValid?([self.subscriptionKey length] > 0):isValid;
-    isValid = isValid?([self.secretKey length] > 0):isValid;
-    
-    
-    return isValid;
+    return [self isSubscribeKeyValid];
+}
+
+- (BOOL)isSubscribeKeyValid {
+
+    return [self.subscriptionKey length] > 0;
+}
+
+- (BOOL)isPublishKeyValid {
+
+    return [self.publishKey length] > 0;
 }
 
 - (NSString *)description {

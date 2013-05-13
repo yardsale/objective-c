@@ -845,7 +845,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 
     // Check whether client is able to send request or not
     NSInteger statusCode = [[self sharedInstance] requestExecutionPossibilityStatusCode];
-    if (statusCode == 0) {
+    if (statusCode == 0 && [[self sharedInstance].configuration isPublishKeyValid]) {
 
         [[PNObservationCenter defaultCenter] removeClientAsMessageProcessingObserver];
         if (success) {
@@ -857,6 +857,8 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
     }
     // Looks like client can't send request because of some reasons
     else {
+
+        statusCode = statusCode==0?kPNClientConfigurationPublishKeyError:statusCode;
 
         PNError *sendingError = [PNError errorWithCode:statusCode];
         PNMessage *failedMessage = [PNMessage messageWithObject:message forChannel:channel error:nil];

@@ -142,7 +142,8 @@
         switch (self.code) {
                 
             case kPNClientConfigurationError:
-                
+            case kPNClientConfigurationPublishKeyError:
+
                 errorDescription = @"Incomplete PubNub client configuration";
                 break;
             case kPNClientTriedConnectWhileConnectedError:
@@ -241,7 +242,11 @@
             
         case kPNClientConfigurationError:
             
-            failureReason = @"One of required configuration field is empty:\n- publish key\n- subscribe key\n- secret key";
+            failureReason = @"Looks like client doesn't has correct subscribe key";
+            break;
+        case kPNClientConfigurationPublishKeyError:
+
+            failureReason = @"Looks like client doesn't has correct publish key";
             break;
         case kPNClientTriedConnectWhileConnectedError:
             
@@ -353,6 +358,7 @@
     switch (self.code) {
             
         case kPNClientConfigurationError:
+        case kPNClientConfigurationPublishKeyError:
             
             fixSuggestion = @"Ensure that you specified all required keys while creating PNConfiguration instance or all values specified in PNDefaultConfiguration.h. You can always visit https://admin.pubnub.comto get all required keys for PubNub client";
             break;

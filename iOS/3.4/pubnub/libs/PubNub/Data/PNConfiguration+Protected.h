@@ -32,6 +32,9 @@
  */
 - (BOOL)isValid;
 
+- (BOOL)isSubscribeKeyValid;
+- (BOOL)isPublishKeyValid;
+
 #pragma mark -
 
 

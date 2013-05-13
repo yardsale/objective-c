@@ -76,6 +76,11 @@
 + (PNConfiguration *)defaultConfiguration;
 
 /**
+ * Retrieve reference on
+ */
++ (PNConfiguration *)configurationWithSubscribeKey:(NSString *)subscribeKey;
+
+/**
  * Retrieve reference on lightweight configuration which
  * require only few parameters from user
  */

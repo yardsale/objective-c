@@ -288,6 +288,11 @@
     [self.requestsQueue removeAllRequests];
 }
 
+- (void)terminate {
+
+    [self cleanUp];
+}
+
 - (void)startTimeoutTimerForRequest:(PNBaseRequest *)request {
 
     self.timeoutTimer = [NSTimer timerWithTimeInterval:[request timeout]
@@ -442,8 +447,8 @@
 
 #pragma mark - Memory management
 
-- (void)dealloc {
-    
+- (void)cleanUp {
+
     // Remove all requests sent by this communication
     // channel
     [self clearScheduledRequestsQueue];
@@ -452,15 +457,22 @@
     self.connection.dataSource = nil;
     self.requestsQueue.delegate = nil;
     self.requestsQueue = nil;
-    
+
     if (self.state == PNConnectionChannelStateConnected) {
-        
+
         [self.delegate connectionChannel:self didDisconnectFromOrigin:nil];
     }
 
     self.connection.delegate = nil;
     [PNConnection destroyConnection:self.connection];
     self.connection = nil;
+}
+
+- (void)dealloc {
+
+    [self cleanUp];
+
+    PNLog(PNLogGeneralLevel, self, @"Destroyed");
 }
 
 #pragma mark -

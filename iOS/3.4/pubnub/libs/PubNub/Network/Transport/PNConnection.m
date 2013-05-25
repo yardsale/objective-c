@@ -52,6 +52,7 @@ struct PNConnectionIdentifiersStruct PNConnectionIdentifiers = {
 // Stores reference on created connection instances
 // which can be used/reused
 static NSMutableDictionary *_connectionsPool = nil;
+static dispatch_once_t onceToken;
 
 // Default origin host connection port
 static UInt32 const kPNOriginConnectionPort = 80;
@@ -280,6 +281,7 @@ static int const kPNStreamBufferSize = 32768;
  */
 - (BOOL)isSecurityTransportError:(CFErrorRef)error;
 - (BOOL)isInternalSecurityTransportError:(CFErrorRef)error;
+- (BOOL)isServerError:(CFErrorRef)error;
 
 /**
  * Connection state retrieval
@@ -385,7 +387,6 @@ static int const kPNStreamBufferSize = 32768;
 
 + (NSMutableDictionary *)connectionsPool {
 
-    static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
 
         _connectionsPool = [NSMutableDictionary new];
@@ -394,6 +395,21 @@ static int const kPNStreamBufferSize = 32768;
 
     return _connectionsPool;
 }
+
++ (void)resetConnectionsPool {
+
+    onceToken = 0;
+
+    // Reset connections
+    if ([_connectionsPool count]) {
+
+        [[_connectionsPool allValues] makeObjectsPerformSelector:@selector(setDataSource:) withObject:nil];
+        [[_connectionsPool allValues] makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
+    }
+
+    _connectionsPool = nil;
+}
+
 
 
 #pragma mark - Instance methods
@@ -604,10 +620,6 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
             case ENETDOWN:      // Network went down
             case ENETUNREACH:   // Network is unreachable
-            case ECONNABORTED:  // Connection was aborted by software (OS)
-            case ENETRESET:     // Network dropped connection on reset
-            case ECONNRESET:    // Connection reset by peer
-            case ENOTCONN:      // Socket not connected or was disconnected
             case ESHUTDOWN:     // Can't send after socket shutdown
             case EHOSTDOWN:     // Host is down
             case EHOSTUNREACH:  // Can't reach host
@@ -643,11 +655,11 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
     NSString *errorDomain = (__bridge NSString *)CFErrorGetDomain(error);
     if ([errorDomain isEqualToString:(NSString *)kCFErrorDomainOSStatus]) {
         
-        isSecurityTransportError = errSSLClientAuthCompleted <= errorCode <= errSSLProtocol;
+        isSecurityTransportError = (errSSLClientAuthCompleted <= errorCode) && (errorCode <= errSSLProtocol);
     }
     else if ([errorDomain isEqualToString:(NSString *)kCFErrorDomainCFNetwork]) {
         
-        isSecurityTransportError = kCFURLErrorClientCertificateRequired <= errorCode <= kCFURLErrorSecureConnectionFailed;
+        isSecurityTransportError = (kCFURLErrorClientCertificateRequired <= errorCode) && (errorCode <= kCFURLErrorSecureConnectionFailed);
     }
     
     
@@ -655,8 +667,38 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 }
 
 - (BOOL)isInternalSecurityTransportError:(CFErrorRef)error {
-    
-    return CFErrorGetCode(error) == errSSLInternal;
+
+    CFIndex code = CFErrorGetCode(error);
+
+
+    return (code == errSSLInternal) || (code == errSSLClosedAbort);
+}
+
+- (BOOL)isServerError:(CFErrorRef)error {
+
+    BOOL isServerError = NO;
+
+
+    NSString *errorDomain = (__bridge NSString *) CFErrorGetDomain(error);
+
+    if ([errorDomain isEqualToString:(NSString *) kCFErrorDomainPOSIX]) {
+
+        switch (CFErrorGetCode(error)) {
+            case ECONNREFUSED:  // Connection refused
+            case ECONNABORTED:  // Connection was aborted by software (OS)
+            case ENETRESET:     // Network dropped connection on reset
+            case ENOTCONN:      // Socket not connected or was disconnected
+            case ENOBUFS:       // No buffer space available
+            case ECONNRESET:    // Connection reset by peer
+            case ENOENT:        // No such file or directory
+
+                isServerError = YES;
+                break;
+        }
+    }
+
+
+    return isServerError;
 }
 
 
@@ -763,6 +805,8 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 }
 
 - (void)reconnect {
+
+    PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" Reconnecting \"%@\" channel", self.name);
 
     // Marking that connection instance is reconnecting
     // now and after last connection will be closed should
@@ -1295,8 +1339,8 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
         BOOL shouldNotifyDelegate = YES;
         BOOL isCriticalStreamError = NO;
 
-        PNLog(PNLogConnectionLayerErrorLevel, self, @"[CONNECTION::%@] GOT ERROR: %@ (CFNetwork error code: %d)",
-              self.name, errorObject, CFErrorGetCode(error));
+        PNLog(PNLogConnectionLayerErrorLevel, self, @"[CONNECTION::%@] GOT ERROR: %@ (CFNetwork error code: %d (Domain: %@); connection should be close? %@)",
+              self.name, errorObject, CFErrorGetCode(error), (__bridge NSString *)CFErrorGetDomain(error), shouldCloseConnection ? @"YES" : @"NO");
 
         // Check whether error is caused by SSL issues or not
         if ([self isSecurityTransportError:error]) {
@@ -1335,9 +1379,9 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
             else {
                 
                 isCriticalStreamError = YES;
+                shouldCloseConnection = NO;
                 shouldNotifyDelegate = NO;
-                
-                // Try to reconnect with new SSL security settings
+
                 [self reconnect];
             }
         }
@@ -1355,7 +1399,15 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
                 // Mark that further operation is impossible w/o
                 // reconnection
                 isCriticalStreamError = YES;
+            }
 
+            if ([self isServerError:error]) {
+
+                isCriticalStreamError = YES;
+                shouldCloseConnection = NO;
+                shouldNotifyDelegate = NO;
+
+                [self reconnect];
             }
         }
 
@@ -1516,6 +1568,7 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
     [self closeConnection];
     _delegate = nil;
     _proxySettings = nil;
+    PNLog(PNLogGeneralLevel, self, @"Destroyed");
 
     PNCFRelease(&_streamSecuritySettings);
 }

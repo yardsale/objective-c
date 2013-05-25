@@ -14,7 +14,7 @@
 
 #import "PubNub+Protected.h"
 #import "PNObservationCenter+Protected.h"
-#import "PNConnectionChannelDelegate.h"
+#import "PNConnectionChannel+Protected.h"
 #import "PNPresenceEvent+Protected.h"
 #import "PNConfiguration+Protected.h"
 #import "PNServiceChannelDelegate.h"
@@ -28,13 +28,14 @@
 #import "PNRequestsImport.h"
 #import "PNHereNowRequest.h"
 #import "PNCryptoHelper.h"
-#import "PNConnectionChannel+Protected.h"
 
 
 #pragma mark Static
 
 // Stores reference on singleton PubNub instance
 static PubNub *_sharedInstance = nil;
+
+static dispatch_once_t onceToken;
 
 
 #pragma mark - Private interface methods
@@ -64,6 +65,10 @@ static PubNub *_sharedInstance = nil;
 // with PubNub service
 @property (nonatomic, strong) PNMessagingChannel *messagingChannel;
 
+// Reference on channels which is used to send service
+// messages to PubNub service
+@property (nonatomic, strong) PNServiceChannel *serviceChannel;
+
 // Stores reference on client delegate
 @property (nonatomic, pn_desired_weak) id<PNDelegate> delegate;
 
@@ -71,10 +76,6 @@ static PubNub *_sharedInstance = nil;
 // (created each time when PubNub stack is configured
 // after application launch)
 @property (nonatomic, strong) NSString *launchSessionIdentifier;
-
-// Reference on channels which is used to send service
-// messages to PubNub service
-@property (nonatomic, strong) PNServiceChannel *serviceChannel;
 
 // Stores reference on configuration which was used to
 // perform initial PubNub client initialization
@@ -203,6 +204,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
  * connection because of speficied error
  */
 - (void)notifyDelegateClientWillDisconnectWithError:(PNError *)error;
+- (void)notifyDelegateClientConnectionFailedWithError:(PNError *)error;
 
 - (void)sendNotification:(NSString *)notificationName withObject:(id)object;
 
@@ -211,6 +213,12 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
  * network went down and restored now
  */
 - (BOOL)shouldRestoreConnection;
+
+/**
+ * Check whether delegate should be notified about some runtime event
+ * (errors will be notified w/o regard to this flag)
+ */
+- (BOOL)shouldNotifyAboutEvent;
 
 /**
  * Check whether client should restore subscription to previous
@@ -244,8 +252,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
 #pragma mark - Class methods
 
 + (PubNub *)sharedInstance {
-    
-    static dispatch_once_t onceToken;
+
     dispatch_once(&onceToken, ^{
         
         _sharedInstance = [[[self class] alloc] init];
@@ -253,6 +260,28 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     
     
     return _sharedInstance;
+}
+
++ (void)resetClient {
+
+    // Mark that client is in resetting state, so it won't be affected by
+    // callbacks from transport classes
+    _sharedInstance.state = PNPubNubClientStateReset;
+
+    onceToken = 0;
+    [PNObservationCenter resetCenter];
+    [PNConnection resetConnectionsPool];
+    [PNChannel purgeChannelsCache];
+    [PNCryptoHelper resetHelper];
+
+    [_sharedInstance.messagingChannel terminate];
+    [_sharedInstance.serviceChannel terminate];
+    _sharedInstance.messagingChannel = nil;
+    _sharedInstance.serviceChannel = nil;
+    [_sharedInstance.reachability stopServiceReachabilityMonitoring];
+    _sharedInstance.reachability = nil;
+
+    _sharedInstance = nil;
 }
 
 
@@ -273,7 +302,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
         [self sharedInstance].state == PNPubNubClientStateConnecting) {
 
         PNError *connectionError = [PNError errorWithCode:kPNClientTriedConnectWhileConnectedError];
-        [[self sharedInstance] notifyDelegateAboutError:connectionError];
+        [[self sharedInstance] notifyDelegateClientConnectionFailedWithError:connectionError];
         
         if (failure) {
 
@@ -287,7 +316,7 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
         if ([self sharedInstance].configuration == nil) {
 
             PNError *connectionError = [PNError errorWithCode:kPNClientConfigurationError];
-            [[self sharedInstance] notifyDelegateAboutError:connectionError];
+            [[self sharedInstance] notifyDelegateClientConnectionFailedWithError:connectionError];
             
             
             if(failure) {
@@ -402,8 +431,10 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     [[PNObservationCenter defaultCenter] removeClientConnectionStateObserver:self oneTimeEvent:YES];
     if ([self sharedInstance].state != PNPubNubClientStateDisconnectingOnConfigurationChange) {
 
+        [[PNObservationCenter defaultCenter] removeClientAsParticipantsListDownloadObserver];
         [[PNObservationCenter defaultCenter] removeClientAsTimeTokenReceivingObserver];
         [[PNObservationCenter defaultCenter] removeClientAsMessageProcessingObserver];
+        [[PNObservationCenter defaultCenter] removeClientAsHistoryDownloadObserver];
         [[PNObservationCenter defaultCenter] removeClientAsSubscriptionObserver];
         [[PNObservationCenter defaultCenter] removeClientAsUnsubscribeObserver];
 
@@ -433,7 +464,9 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     
     
     // Destroy communication channels
+    [[self sharedInstance].messagingChannel terminate];
     [self sharedInstance].messagingChannel = nil;
+    [[self sharedInstance].serviceChannel terminate];
     [self sharedInstance].serviceChannel = nil;
 }
 
@@ -641,7 +674,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 
         if (handlerBlock != nil) {
 
-            [[PNObservationCenter defaultCenter] addClientAsSubscriptionObserverWithBlock:handlerBlock];
+            [[PNObservationCenter defaultCenter] addClientAsSubscriptionObserverWithBlock:[handlerBlock copy]];
         }
 
 
@@ -718,7 +751,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 
         if (handlerBlock) {
 
-            [[PNObservationCenter defaultCenter] addClientAsUnsubscribeObserverWithBlock:handlerBlock];
+            [[PNObservationCenter defaultCenter] addClientAsUnsubscribeObserverWithBlock:[handlerBlock copy]];
         }
 
 
@@ -808,7 +841,8 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 
         [[PNObservationCenter defaultCenter] removeClientAsTimeTokenReceivingObserver];
         if (success) {
-            [[PNObservationCenter defaultCenter] addClientAsTimeTokenReceivingObserverWithCallbackBlock:success];
+
+            [[PNObservationCenter defaultCenter] addClientAsTimeTokenReceivingObserverWithCallbackBlock:[success copy]];
         }
 
 
@@ -850,7 +884,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
         [[PNObservationCenter defaultCenter] removeClientAsMessageProcessingObserver];
         if (success) {
 
-            [[PNObservationCenter defaultCenter] addClientAsMessageProcessingObserverWithBlock:success];
+            [[PNObservationCenter defaultCenter] addClientAsMessageProcessingObserverWithBlock:[success copy]];
         }
 
         messageObject = [[self sharedInstance].serviceChannel sendMessage:message toChannel:channel];
@@ -962,7 +996,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
         [[PNObservationCenter defaultCenter] removeClientAsHistoryDownloadObserver];
         if (handleBlock) {
 
-            [[PNObservationCenter defaultCenter] addClientAsHistoryDownloadObserverWithBlock:handleBlock];
+            [[PNObservationCenter defaultCenter] addClientAsHistoryDownloadObserverWithBlock:[handleBlock copy]];
         }
 
         PNMessageHistoryRequest *request = [PNMessageHistoryRequest messageHistoryRequestForChannel:channel
@@ -1000,7 +1034,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
         [[PNObservationCenter defaultCenter] removeClientAsParticipantsListDownloadObserver];
         if (handleBlock) {
 
-            [[PNObservationCenter defaultCenter] addClientAsParticipantsListDownloadObserverWithBlock:handleBlock];
+            [[PNObservationCenter defaultCenter] addClientAsParticipantsListDownloadObserverWithBlock:[handleBlock copy]];
         }
 
 
@@ -1100,28 +1134,28 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
     
     // Check whether at least one of blocks has been provided and whether
     // PubNub client already subscribed on state change event or not
-    if(![[PNObservationCenter defaultCenter] isSubscribedOnClientStateChange:self] &&
-       (success || failure)) {
+    if(![[PNObservationCenter defaultCenter] isSubscribedOnClientStateChange:self] && (success || failure)) {
     
         // Subscribing PubNub client for connection state observation
         // (as soon as event will occur PubNub client will be removed
         // from observers list)
-        [[PNObservationCenter defaultCenter] addClientConnectionStateObserver:self
+        __pn_desired_weak typeof(self) weakSelf = self;
+        [[PNObservationCenter defaultCenter] addClientConnectionStateObserver:weakSelf
                                                                  oneTimeEvent:YES
-                                                            withCallbackBlock:^(NSString *origin,
-                                                                                BOOL connected,
-                                                                                PNError *connectionError) {
-                                                                
-            // Notify subscriber via blocks
-            if (connected && success) {
-                
-                success(origin);
-            }
-            else if (!connected && failure){
-                
-                failure(connectionError);
-            }
-        }];
+                                                            withCallbackBlock:[^(NSString *origin,
+                                                                                 BOOL connected,
+                                                                                 PNError *connectionError) {
+
+                                                                    // Notify subscriber via blocks
+                                                                    if (connected && success) {
+
+                                                                        success(origin);
+                                                                    }
+                                                                    else if (!connected && failure) {
+
+                                                                        failure(connectionError);
+                                                                    }
+                                                                } copy]];
     }
 }
 
@@ -1232,20 +1266,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
        ![self.messagingChannel isConnected] && ![self.serviceChannel isConnected]) {
 
         [self.configuration shouldKillDNSCache:YES];
-        
-        if ([self.delegate respondsToSelector:@selector(pubnubClient:connectionDidFailWithError:)]) {
-            
-            [self.delegate performSelector:@selector(pubnubClient:connectionDidFailWithError:)
-                                withObject:self
-                                withObject:error];
-        }
-        
-        
-        // Send notification to all who is interested in it
-        // (observation center will track it as well)
-        [[NSNotificationCenter defaultCenter] postNotificationName:kPNClientConnectionDidFailWithErrorNotification
-                                                            object:self
-                                                          userInfo:(id)error];
+        [self notifyDelegateClientConnectionFailedWithError:error];
     }
 }
 
@@ -1279,25 +1300,9 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
             self.state = state;
 
 
-            if (self.state == PNPubNubClientStateDisconnected) {
-
-                if ([self.delegate respondsToSelector:@selector(pubnubClient:didDisconnectFromOrigin:)]) {
-
-                    [self.delegate pubnubClient:self didDisconnectFromOrigin:host];
-                }
-
-                [self sendNotification:kPNClientDidDisconnectFromOriginNotification withObject:host];
-            }
-            else if (state == PNPubNubClientStateDisconnectedOnNetworkError) {
+            if (state == PNPubNubClientStateDisconnectedOnNetworkError) {
 
                 connectionError = [PNError errorWithCode:kPNClientConnectionClosedOnInternetFailureError];
-
-                if ([self.delegate respondsToSelector:@selector(pubnubClient:didDisconnectFromOrigin:withError:)]) {
-
-                    [self.delegate pubnubClient:self didDisconnectFromOrigin:host withError:connectionError];
-                }
-
-                [self sendNotification:kPNClientConnectionDidFailWithErrorNotification withObject:connectionError];
             }
             
             
@@ -1348,6 +1353,34 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
                         self.state = PNPubNubClientStateDisconnected;
                     }
                 }
+            }
+
+
+            if (self.state == PNPubNubClientStateDisconnected) {
+
+                // Delay disconnection notification to give client ability
+                // to perform clean up well
+                __block __pn_desired_weak typeof (self) weakSelf = self;
+                double delayInSeconds = 1.0;
+                dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t) (delayInSeconds * NSEC_PER_SEC));
+                dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
+
+                    if ([weakSelf.delegate respondsToSelector:@selector(pubnubClient:didDisconnectFromOrigin:)]) {
+
+                        [weakSelf.delegate pubnubClient:self didDisconnectFromOrigin:host];
+                    }
+
+                    [weakSelf sendNotification:kPNClientDidDisconnectFromOriginNotification withObject:host];
+                });
+            }
+            else if (state == PNPubNubClientStateDisconnectedOnNetworkError) {
+
+                if ([self.delegate respondsToSelector:@selector(pubnubClient:didDisconnectFromOrigin:withError:)]) {
+
+                    [self.delegate pubnubClient:self didDisconnectFromOrigin:host withError:connectionError];
+                }
+
+                [self sendNotification:kPNClientConnectionDidFailWithErrorNotification withObject:connectionError];
             }
         }
         // Check whether server unexpectedly closed connection
@@ -1427,17 +1460,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
     if (self.state == PNPubNubClientStateConnecting) {
 
         PNError *networkError = [PNError errorWithCode:kPNClientConnectionFailedOnInternetFailureError];
-
-        // Notify delegate about connection error if delegate
-        // implemented error handling delegate method
-        if ([self.delegate respondsToSelector:@selector(pubnubClient:connectionDidFailWithError:)]) {
-
-            [self.delegate performSelector:@selector(pubnubClient:connectionDidFailWithError:)
-                                withObject:self
-                                withObject:networkError];
-        }
-
-        [self sendNotification:kPNClientConnectionDidFailWithErrorNotification withObject:networkError];
+        [self notifyDelegateClientConnectionFailedWithError:networkError];
     }
 }
 
@@ -1579,6 +1602,18 @@ didFailParticipantsListDownloadForChannel:error.associatedObject
     [self sendNotification:kPNClientConnectionDidFailWithErrorNotification withObject:error];
 }
 
+- (void)notifyDelegateClientConnectionFailedWithError:(PNError *)error {
+
+    if ([self.delegate respondsToSelector:@selector(pubnubClient:connectionDidFailWithError:)]) {
+
+        [self.delegate performSelector:@selector(pubnubClient:connectionDidFailWithError:)
+                            withObject:self
+                            withObject:error];
+    }
+
+    [self sendNotification:kPNClientConnectionDidFailWithErrorNotification withObject:error];
+}
+
 - (void)sendNotification:(NSString *)notificationName withObject:(id)object {
 
     // Send notification to all who is interested in it
@@ -1621,6 +1656,13 @@ didFailParticipantsListDownloadForChannel:error.associatedObject
 
 
     return shouldRestoreFromLastTimeToken;
+}
+
+- (BOOL)shouldNotifyAboutEvent {
+
+    return (self.state != PNPubNubClientStateCreated) && (self.state != PNPubNubClientStateConnecting) &&
+           (self.state != PNPubNubClientStateDisconnecting) && (self.state != PNPubNubClientStateDisconnected) &&
+           (self.state != PNPubNubClientStateReset);
 }
 
 - (NSInteger)requestExecutionPossibilityStatusCode {
@@ -1673,30 +1715,36 @@ didFailParticipantsListDownloadForChannel:error.associatedObject
 
 - (void)messagingChannel:(PNMessagingChannel *)channel didSubscribeOnChannels:(NSArray *)channels {
 
-    // Check whether delegate can handle subscription on channel or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didSubscribeOnChannels:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didSubscribeOnChannels:)
-                            withObject:self
-                            withObject:channels];
+        // Check whether delegate can handle subscription on channel or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didSubscribeOnChannels:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didSubscribeOnChannels:)
+                                withObject:self
+                                withObject:channels];
+        }
+
+
+        [self sendNotification:kPNClientSubscriptionDidCompleteNotification withObject:channels];
     }
-
-
-    [self sendNotification:kPNClientSubscriptionDidCompleteNotification withObject:channels];
 }
 
 - (void)messagingChannel:(PNMessagingChannel *)messagingChannel didRestoreSubscriptionOnChannels:(NSArray *)channels {
 
-    // Check whether delegate can handle subscription restore on channels or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didRestoreSubscriptionOnChannels:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didRestoreSubscriptionOnChannels:)
-                            withObject:self
-                            withObject:channels];
+        // Check whether delegate can handle subscription restore on channels or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didRestoreSubscriptionOnChannels:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didRestoreSubscriptionOnChannels:)
+                                withObject:self
+                                withObject:channels];
+        }
+
+
+        [self sendNotification:kPNClientSubscriptionDidRestoreNotification withObject:channels];
     }
-
-
-    [self sendNotification:kPNClientSubscriptionDidRestoreNotification withObject:channels];
 }
 
 - (void)messagingChannelDidReconnect:(PNMessagingChannel *)messagingChannel {
@@ -1721,15 +1769,18 @@ didFailSubscribeOnChannels:(NSArray *)channels
 
 - (void)messagingChannel:(PNMessagingChannel *)channel didUnsubscribeFromChannels:(NSArray *)channels {
 
-    // Check whether delegate can handle unsubscription event or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didUnsubscribeOnChannels:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didUnsubscribeOnChannels:)
-                            withObject:self
-                            withObject:channels];
+        // Check whether delegate can handle unsubscription event or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didUnsubscribeOnChannels:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didUnsubscribeOnChannels:)
+                                withObject:self
+                                withObject:channels];
+        }
+
+        [self sendNotification:kPNClientUnsubscriptionDidCompleteNotification withObject:channels];
     }
-
-    [self sendNotification:kPNClientUnsubscriptionDidCompleteNotification withObject:channels];
 }
 
 - (void)    messagingChannel:(PNMessagingChannel *)channel
@@ -1742,15 +1793,18 @@ didFailUnsubscribeOnChannels:(NSArray *)channels
 
 - (void)messagingChannel:(PNMessagingChannel *)messagingChannel didReceiveMessage:(PNMessage *)message {
 
-    // Check whether delegate can handle new message arrival or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveMessage:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didReceiveMessage:)
-                            withObject:self
-                            withObject:message];
+        // Check whether delegate can handle new message arrival or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveMessage:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didReceiveMessage:)
+                                withObject:self
+                                withObject:message];
+        }
+
+        [self sendNotification:kPNClientDidReceiveMessageNotification withObject:message];
     }
-
-    [self sendNotification:kPNClientDidReceiveMessageNotification withObject:message];
 }
 
 - (void)messagingChannel:(PNMessagingChannel *)messagingChannel didReceiveEvent:(PNPresenceEvent *)event {
@@ -1762,15 +1816,18 @@ didFailUnsubscribeOnChannels:(NSArray *)channels
         [channel updateWithEvent:event];
     }
 
-    // Check whether delegate can handle presence event arrival or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceivePresenceEvent:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didReceivePresenceEvent:)
-                            withObject:self
-                            withObject:event];
+        // Check whether delegate can handle presence event arrival or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceivePresenceEvent:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didReceivePresenceEvent:)
+                                withObject:self
+                                withObject:event];
+        }
+
+        [self sendNotification:kPNClientDidReceivePresenceEventNotification withObject:event];
     }
-
-    [self sendNotification:kPNClientDidReceivePresenceEventNotification withObject:event];
 }
 
 
@@ -1778,16 +1835,19 @@ didFailUnsubscribeOnChannels:(NSArray *)channels
 
 - (void)serviceChannel:(PNServiceChannel *)channel didReceiveTimeToken:(NSNumber *)timeToken {
 
-    // Check whether delegate can handle time token retrieval or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveTimeToken:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didReceiveTimeToken:)
-                            withObject:self
-                            withObject:timeToken];
+        // Check whether delegate can handle time token retrieval or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveTimeToken:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didReceiveTimeToken:)
+                                withObject:self
+                                withObject:timeToken];
+        }
+
+
+        [self sendNotification:kPNClientDidReceiveTimeTokenNotification withObject:timeToken];
     }
-
-
-    [self sendNotification:kPNClientDidReceiveTimeTokenNotification withObject:timeToken];
 }
 
 - (void)serviceChannel:(PNServiceChannel *)channel receiveTimeTokenDidFailWithError:(PNError *)error {
@@ -1804,28 +1864,34 @@ didReceiveNetworkLatency:(double)latency
 
 - (void)serviceChannel:(PNServiceChannel *)channel willSendMessage:(PNMessage *)message {
 
-    // Check whether delegate can handle message sending event or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:willSendMessage:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:willSendMessage:)
-                            withObject:self
-                            withObject:message];
+        // Check whether delegate can handle message sending event or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:willSendMessage:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:willSendMessage:)
+                                withObject:self
+                                withObject:message];
+        }
+
+        [self sendNotification:kPNClientWillSendMessageNotification withObject:message];
     }
-
-    [self sendNotification:kPNClientWillSendMessageNotification withObject:message];
 }
 
 - (void)serviceChannel:(PNServiceChannel *)channel didSendMessage:(PNMessage *)message {
 
-    // Check whether delegate can handle message sent event or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didSendMessage:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate performSelector:@selector(pubnubClient:didSendMessage:)
-                            withObject:self
-                            withObject:message];
+        // Check whether delegate can handle message sent event or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didSendMessage:)]) {
+
+            [self.delegate performSelector:@selector(pubnubClient:didSendMessage:)
+                                withObject:self
+                                withObject:message];
+        }
+
+        [self sendNotification:kPNClientDidSendMessageNotification withObject:message];
     }
-
-    [self sendNotification:kPNClientDidSendMessageNotification withObject:message];
 }
 
 - (void)serviceChannel:(PNServiceChannel *)channel
@@ -1838,17 +1904,20 @@ didReceiveNetworkLatency:(double)latency
 
 - (void)serviceChannel:(PNServiceChannel *)serviceChannel didReceiveMessagesHistory:(PNMessagesHistory *)history {
 
-    // Check whether delegate can response on history download event or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveMessageHistory:forChannel:startingFrom:to:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate pubnubClient:self
-           didReceiveMessageHistory:history.messages
-                         forChannel:history.channel
-                       startingFrom:history.startDate
-                                 to:history.endDate];
+        // Check whether delegate can response on history download event or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveMessageHistory:forChannel:startingFrom:to:)]) {
+
+            [self.delegate pubnubClient:self
+               didReceiveMessageHistory:history.messages
+                             forChannel:history.channel
+                           startingFrom:history.startDate
+                                     to:history.endDate];
+        }
+
+        [self sendNotification:kPNClientDidReceiveMessagesHistoryNotification withObject:history];
     }
-
-    [self sendNotification:kPNClientDidReceiveMessagesHistoryNotification withObject:history];
 }
 
 - (void)serviceChannel:(PNServiceChannel *)serviceChannel
@@ -1861,15 +1930,18 @@ didReceiveNetworkLatency:(double)latency
 
 - (void)serviceChannel:(PNServiceChannel *)serviceChannel didReceiveParticipantsList:(PNHereNow *)participants {
 
-    // Check whether delegate can response on participants list download event or not
-    if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveParticipantsLits:forChannel:)]) {
+    if ([self shouldNotifyAboutEvent]) {
 
-        [self.delegate pubnubClient:self
-         didReceiveParticipantsLits:participants.participants
-                         forChannel:participants.channel];
+        // Check whether delegate can response on participants list download event or not
+        if ([self.delegate respondsToSelector:@selector(pubnubClient:didReceiveParticipantsLits:forChannel:)]) {
+
+            [self.delegate pubnubClient:self
+             didReceiveParticipantsLits:participants.participants
+                             forChannel:participants.channel];
+        }
+
+        [self sendNotification:kPNClientDidReceiveParticipantsListNotification withObject:participants];
     }
-
-    [self sendNotification:kPNClientDidReceiveParticipantsListNotification withObject:participants];
 }
 
 - (void)               serviceChannel:(PNServiceChannel *)serviceChannel
@@ -1879,6 +1951,14 @@ didFailParticipantsListLoadForChannel:(PNChannel *)channel
     error.associatedObject = channel;
     [self notifyDelegateAboutParticipantsListDownloadFailedWithError:error];
 
+}
+
+
+#pragma mark - Memory management
+
+- (void)dealloc {
+
+    PNLog(PNLogGeneralLevel, self, @"Destroyed");
 }
 
 #pragma mark -

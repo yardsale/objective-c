@@ -50,6 +50,21 @@
 + (void)connect;
 
 /**
+ * Connect client to PubNub service with specified configuration and
+ * delegate
+ */
++ (void)connectWithConfiguration:(PNConfiguration *)configuration andDelegate:(id<PNDelegate>)delegate;
+
+/**
+ * Perform same actino as +connectWithConfiguration:andDelegate: but in addition provides
+ * handling block
+ */
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                        delegate:(id<PNDelegate>)delegate
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                      errorBlock:(PNClientConnectionFailureBlock)failure;
+
+/**
  * Perform same action as +connect but in addition provides
  * handling blocks
  */

@@ -448,6 +448,36 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     [self connectWithSuccessBlock:nil errorBlock:nil];
 }
 
++ (void)connectWithConfiguration:(PNConfiguration *)configuration andDelegate:(id<PNDelegate>)delegate {
+    
+    [self connectWithConfiguration:configuration delegate:delegate successBlock:nil errorBlock:nil];
+}
+
++ (void)connectWithConfiguration:(PNConfiguration *)configuration
+                        delegate:(id<PNDelegate>)delegate
+                    successBlock:(PNClientConnectionSuccessBlock)success
+                      errorBlock:(PNClientConnectionFailureBlock)failure {
+    
+    // Check whether instance already connected or not
+    if ([self sharedInstance].state == PNPubNubClientStateConnected ||
+        [self sharedInstance].state == PNPubNubClientStateConnecting) {
+        
+        PNError *connectionError = [PNError errorWithCode:kPNClientTriedConnectWhileConnectedError];
+        [[self sharedInstance] notifyDelegateClientConnectionFailedWithError:connectionError];
+        
+        if (failure) {
+            
+            failure(connectionError);
+        }
+    }
+    else {
+        
+        [self sharedInstance].configuration = configuration;
+        [self sharedInstance].delegate = delegate;
+        [self connectWithSuccessBlock:success errorBlock:failure];
+    }
+}
+
 + (void)connectWithSuccessBlock:(PNClientConnectionSuccessBlock)success
                      errorBlock:(PNClientConnectionFailureBlock)failure {
 

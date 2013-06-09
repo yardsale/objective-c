@@ -40,6 +40,9 @@
 // requests to report that request failed
 @property (nonatomic, assign) NSTimeInterval subscriptionRequestTimeout;
 
+// Stores timeout which is used to identify that server may dropped connection
+@property (nonatomic, assign) NSTimeInterval connectionIdleTimeout;
+
 // Stores whether client should restore subscription on channels after connection
 // has been restored or not
 @property (nonatomic, assign, getter = shouldResubscribeOnConnectionRestore) BOOL resubscribeOnConnectionRestore;

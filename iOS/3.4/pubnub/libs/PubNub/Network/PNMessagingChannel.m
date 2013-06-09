@@ -976,7 +976,7 @@
 
     [self stopChannelIdleTimer];
 
-    self.idleTimer = [NSTimer timerWithTimeInterval:kPNConnectionIdleTimeout
+    self.idleTimer = [NSTimer timerWithTimeInterval:[PubNub sharedInstance].configuration.connectionIdleTimeout
                                              target:self
                                            selector:@selector(handleIdleTimer:)
                                            userInfo:nil

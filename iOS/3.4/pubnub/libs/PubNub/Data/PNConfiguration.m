@@ -174,6 +174,7 @@
         self.resubscribeOnConnectionRestore = kPNShouldResubscribeOnConnectionRestore;
         self.restoreSubscriptionFromLastTimeToken = kPNShouldRestoreSubscriptionFromLastTimeToken;
         self.acceptCompressedResponse = kPNShouldAcceptCompressedResponse;
+        self.connectionIdleTimeout = kPNConnectionIdleTimeout;
         self.nonSubscriptionRequestTimeout = kPNNonSubscriptionRequestTimeout;
         self.subscriptionRequestTimeout = kPNSubscriptionRequestTimeout;
 

@@ -27,8 +27,8 @@ static BOOL const kPNShouldRestoreSubscriptionFromLastTimeToken = YES;
 static BOOL const kPNShouldAcceptCompressedResponse = YES;
 
 static NSTimeInterval const kPNConnectionIdleTimeout = 310.0f;
-static NSTimeInterval const kPNNonSubscriptionRequestTimeout = 10.0f;
-static NSTimeInterval const kPNSubscriptionRequestTimeout = 10.0f;
+static NSTimeInterval const kPNNonSubscriptionRequestTimeout = 15.0f;
+static NSTimeInterval const kPNSubscriptionRequestTimeout = 20.0f;
 
 // This flag tells whether client should reduce SSL rules
 // when connecting to remote origin because of connection

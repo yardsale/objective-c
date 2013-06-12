@@ -1,0 +1,12 @@
+//
+// Prefix header for all source files of the 'pncl' target in the 'pncl' project
+//
+
+#ifdef __OBJC__
+    #import <Foundation/Foundation.h>
+#import "PubNub.h"
+#import "PNImports.h"
+
+
+
+#endif

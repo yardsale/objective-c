@@ -119,6 +119,7 @@
 		9645C121174FDA7D00F82D09 /* PNConnectionTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 9645C10E174FDA7D00F82D09 /* PNConnectionTest.m */; };
 		9645C122174FDA7D00F82D09 /* PNServiceChannelTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 9645C112174FDA7D00F82D09 /* PNServiceChannelTest.m */; };
 		9645C123174FDDAE00F82D09 /* PNMessagingChannelTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 9645C0F9174FDA7D00F82D09 /* PNMessagingChannelTest.m */; };
+		966FB036176A07D90009FC30 /* AFNetworking.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 966FB035176A07D90009FC30 /* AFNetworking.podspec */; };
 		96831B6917500135002F150F /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD71BF43E328EDCD6FF8F254 /* Security.framework */; };
 		96831B6A17500139002F150F /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD71B83AEEA2DBCDE169F068 /* QuartzCore.framework */; };
 		96831B6B1750013B002F150F /* libz.1.2.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = DD71B1E2DB5B835A0C695908 /* libz.1.2.5.dylib */; };
@@ -351,6 +352,7 @@
 		9645C112174FDA7D00F82D09 /* PNServiceChannelTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PNServiceChannelTest.m; sourceTree = "<group>"; };
 		9645C113174FDA7D00F82D09 /* PNServiceChannelTest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PNServiceChannelTest.h; sourceTree = "<group>"; };
 		9645C114174FDA7D00F82D09 /* PNReachabilityTest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PNReachabilityTest.h; sourceTree = "<group>"; };
+		966FB035176A07D90009FC30 /* AFNetworking.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = AFNetworking.podspec; sourceTree = "<group>"; };
 		969A945A1764ABF100D20F6B /* PubNub.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = PubNub.podspec; path = ../../../PubNub.podspec; sourceTree = "<group>"; };
 		DD71B11B1A0A39CB79D9A732 /* PNChannelEventsResponseParser.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PNChannelEventsResponseParser.m; sourceTree = "<group>"; };
 		DD71B14308BF96FAEB2EAEE2 /* UIDevice+PNAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIDevice+PNAdditions.h"; sourceTree = "<group>"; };
@@ -658,6 +660,7 @@
 				79C32238166DF847006DB535 /* main.m */,
 				79C3223A166DF847006DB535 /* pubnub-Prefix.pch */,
 				969A945A1764ABF100D20F6B /* PubNub.podspec */,
+				966FB035176A07D90009FC30 /* AFNetworking.podspec */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -1104,6 +1107,7 @@
 				790E637A16AD6AEB00CAD373 /* PNChannelInformationView~ipad.xib in Resources */,
 				790E63BC16ADA98700CAD373 /* PNChannelCreationView~ipad.xib in Resources */,
 				79EBCA7D16ADEC4400E616E8 /* PNChannelHistoryView~ipad.xib in Resources */,
+				966FB036176A07D90009FC30 /* AFNetworking.podspec in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

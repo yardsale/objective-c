@@ -17,9 +17,31 @@ Pod::Spec.new do |s|
   #
   #s.source_files = 'iOS/3.4/pubnub/libs/PubNub/Misc/PNImports.h','iOS/3.4/pubnub/libs', 'iOS/3.4/pubnub/libs/**/*.{h,m}', 'iOS/3.4/pubnub/libs/**/**/*.{h,m}', 'iOS/3.4/pubnub/libs/**/**/**/*.{h,m}'
 
-  s.source_files = 'iOS/3.4/pubnub'
+  #s.source_files = 'iOS/3.4/pubnub'
 
   #s.frameworks = 'Security'
+  
+  
+  
+  s.source_files = 'iOS/3.4/pubnub/libs/PubNub/Misc/Categories',
+   'iOS/3.4/pubnub/libs/PubNub/Data',
+   'iOS/3.4/pubnub/libs/PubNub/Misc',
+   'iOS/3.4/pubnub/libs/PubNub/Misc/Protocols',
+   'iOS/3.4/pubnub/libs/PubNub/Core',
+   'iOS/3.4/pubnub/libs/PubNub/Data/Channels',
+   'iOS/3.4/pubnub/libs/PubNub/Data/Crypto',
+   'iOS/3.4/pubnub/libs/JSONKit',
+   'iOS/3.4/pubnub/libs/PubNub/Network/Packets',
+   'iOS/3.4/pubnub/libs/PubNub/Data/Buffers',
+   'iOS/3.4/pubnub/libs/PubNub/Network',
+   'iOS/3.4/pubnub/libs/PubNub/Network/Transport',
+   'iOS/3.4/pubnub/libs/PubNub/Data/Channels/Presence',
+   'PNConstants.h'
+  
+  
+#  s.compiler_flags = {'iOS/3.4/pubnub/libs/JSONKit/JSONKit.m' => '-f-no-objc-arc'}
+s.compiler_flags = {'PubNub/iOS/3.4/pubnub/libs/JSONKit/JSONKit.m' => '-f-no-objc-arc'}
+  s.prefix_header_file = 'iOS/3.4/pubnub/pubnub-Prefix.pch'
   s.requires_arc = true
   
 s.platform = :ios

@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
     'Name Soname' => 'youremail@here.com'
   }
   s.source = {
-    :git => 'https://github.com/vosovets/objective-c.git',
+    :git => 'https://github.com/pubnub/objective-c.git',
     :tag => 'v3.4.1'
   }
   

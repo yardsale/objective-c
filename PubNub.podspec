@@ -2,11 +2,12 @@ Pod::Spec.new do |s|
   s.name         = 'PubNub'
   s.version      = '3.4.1'
   s.summary      = 'The PubNub Real-Time Network. Build real-time apps quickly and scale them globally.'
-  s.author = {
-    'Name Soname' => 'youremail@here.com'
+  s.authors = {
+    'Sergey Mamontov' => 'support@pubnub.com',
+    'Vadim Osovets' => 'support@pubnub.com'
   }
   s.source = {
-    :git => 'https://github.com/pubnub/objective-c.git',
+    :git => 'https://github.com/vosovets/objective-c.git',
     :tag => 'v3.4.1'
   }
   
@@ -14,7 +15,6 @@ Pod::Spec.new do |s|
   # added to the Pods project. If the pattern is a directory then the
   # path will automatically have '*.{h,m,mm,c,cpp}' appended.
   #  
-  
   s.source_files = 'iOS/3.4/pubnub/libs/PubNub/Misc/Categories',
    'iOS/3.4/pubnub/libs/PubNub/Data',
    'iOS/3.4/pubnub/libs/PubNub/Misc',
@@ -41,7 +41,7 @@ Pod::Spec.new do |s|
 	s.homepage = 'http://www.pubnub.com/'
 
 s.license = {
-    :type => 'Commercial',
+    :type => 'MIT',
     :text => <<-LICENSE
 PubNub Real-time Cloud-Hosted Push API and Push Notification Client Frameworks
 Copyright (c) 2013 PubNub Inc.

@@ -31,18 +31,13 @@ Pod::Spec.new do |s|
    'PNConstants.h'
 
   	s.prefix_header_file = 'iOS/3.4/pubnub/pubnub-Prefix.pch'
-  
   	s.requires_arc = true
   	s.dependency 'JSONKit', '~> 1.4'
-
-  
 	s.platform = :ios
-
 	s.homepage = 'http://www.pubnub.com/'
-
-s.license = {
-    :type => 'MIT',
-    :text => <<-LICENSE
+	s.license = {
+	    :type => 'MIT',
+    	:text => <<-LICENSE
 PubNub Real-time Cloud-Hosted Push API and Push Notification Client Frameworks
 Copyright (c) 2013 PubNub Inc.
 http://www.pubnub.com/

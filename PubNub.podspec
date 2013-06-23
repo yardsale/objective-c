@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
     'Vadim Osovets' => 'support@pubnub.com'
   }
   s.source = {
-    :git => 'https://github.com/vosovets/objective-c.git',
+    :git => 'https://github.com/pubnub/objective-c.git',
     :tag => 'v3.4.1'
   }
   

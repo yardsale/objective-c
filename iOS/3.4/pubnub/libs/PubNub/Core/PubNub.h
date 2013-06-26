@@ -53,8 +53,7 @@
  * Perform same action as +connect but in addition provides
  * handling blocks
  */
-+ (void)connectWithSuccessBlock:(PNClientConnectionSuccessBlock)success
-                     errorBlock:(PNClientConnectionFailureBlock)failure;
++ (void)connectWithSuccessBlock:(PNClientConnectionSuccessBlock)success errorBlock:(PNClientConnectionFailureBlock)failure;
 
 /**
  * Will disconnect from all channels w/o sending leave
@@ -133,8 +132,7 @@
  * use PNObservationCenter methods for this purpose.
  */
 + (void)subscribeOnChannel:(PNChannel *)channel;
-+ (void) subscribeOnChannel:(PNChannel *)channel
-withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBlock;
++ (void) subscribeOnChannel:(PNChannel *)channel withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBlock;
 
 /**
  * Will subscribe client for another one channel.
@@ -167,8 +165,7 @@ andCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBlock
  * use PNObservationCenter methods for this purpose.
  */
 + (void)subscribeOnChannels:(NSArray *)channels;
-+ (void)subscribeOnChannels:(NSArray *)channels
-withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBlock;
++ (void)subscribeOnChannels:(NSArray *)channels withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBlock;
 
 /**
  * Will subscribe client for another one channel.
@@ -201,8 +198,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * use PNObservationCenter methods for this purpose.
  */
 + (void)unsubscribeFromChannel:(PNChannel *)channel;
-+ (void)unsubscribeFromChannel:(PNChannel *)channel
-   withCompletionHandlingBlock:(PNClientChannelUnsubscriptionHandlerBlock)handlerBlock;
++ (void)unsubscribeFromChannel:(PNChannel *)channel withCompletionHandlingBlock:(PNClientChannelUnsubscriptionHandlerBlock)handlerBlock;
 
 /**
  * Will unsubscribe client from specified channel.
@@ -238,8 +234,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * use PNObservationCenter methods for this purpose.
  */
 + (void)unsubscribeFromChannels:(NSArray *)channels;
-+ (void)unsubscribeFromChannels:(NSArray *)channels
-    withCompletionHandlingBlock:(PNClientChannelUnsubscriptionHandlerBlock)handlerBlock;
++ (void)unsubscribeFromChannels:(NSArray *)channels withCompletionHandlingBlock:(PNClientChannelUnsubscriptionHandlerBlock)handlerBlock;
 
 /**
  * Will unsubscribe client from set of channels.
@@ -338,29 +333,25 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * Enable presence observation for specific channel
  */
 + (void)enablePresenceObservationForChannel:(PNChannel *)channel;
-+ (void)enablePresenceObservationForChannel:(PNChannel *)channel
-                withCompletionHandlingBlock:(PNClientPresenceEnableHandlingBlock)handlerBlock;
++ (void)enablePresenceObservationForChannel:(PNChannel *)channel withCompletionHandlingBlock:(PNClientPresenceEnableHandlingBlock)handlerBlock;
 
 /**
  * Enable presence observation for list of channels
  */
 + (void)enablePresenceObservationForChannels:(NSArray *)channels;
-+ (void)enablePresenceObservationForChannels:(NSArray *)channels
-                 withCompletionHandlingBlock:(PNClientPresenceEnableHandlingBlock)handlerBlock;
++ (void)enablePresenceObservationForChannels:(NSArray *)channels withCompletionHandlingBlock:(PNClientPresenceEnableHandlingBlock)handlerBlock;
 
 /**
  * Disable presence observation for specific channel
  */
 + (void)disablePresenceObservationForChannel:(PNChannel *)channel;
-+ (void)disablePresenceObservationForChannel:(PNChannel *)channel
-                 withCompletionHandlingBlock:(PNClientPresenceDisableHandlingBlock)handlerBlock;
++ (void)disablePresenceObservationForChannel:(PNChannel *)channel withCompletionHandlingBlock:(PNClientPresenceDisableHandlingBlock)handlerBlock;
 
 /**
  * Disable presence observation for list of channels
  */
 + (void)disablePresenceObservationForChannels:(NSArray *)channels;
-+ (void)disablePresenceObservationForChannels:(NSArray *)channels
-                  withCompletionHandlingBlock:(PNClientPresenceDisableHandlingBlock)handlerBlock;
++ (void)disablePresenceObservationForChannels:(NSArray *)channels withCompletionHandlingBlock:(PNClientPresenceDisableHandlingBlock)handlerBlock;
 
 
 #pragma mark - Time token
@@ -413,9 +404,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * If you need to track message sending from many places, use
  * PNObservationCenter methods for this purpose.
  */
-+ (PNMessage *)sendMessage:(id)message
-                 toChannel:(PNChannel *)channel
-       withCompletionBlock:(PNClientMessageProcessingBlock)success;
++ (PNMessage *)sendMessage:(id)message toChannel:(PNChannel *)channel withCompletionBlock:(PNClientMessageProcessingBlock)success;
 
 /**
  * Asynchronously send configured message object
@@ -441,6 +430,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * Fetch all history for specified channel
  */
 + (void)requestFullHistoryForChannel:(PNChannel *)channel;
++ (void)requestFullHistoryForChannel:(PNChannel *)channel includeTimeToken:(BOOL)shouldIncludeTimeToken;
 
 /**
  * Same as +requestFullHistoryForChannel: but allow to specify
@@ -452,13 +442,18 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * PNObservationCenter methods for this purpose.
  */
 + (void)requestFullHistoryForChannel:(PNChannel *)channel withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestFullHistoryForChannel:(PNChannel *)channel
+                    includeTimeToken:(BOOL)shouldIncludeTimeToken
+                  andCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 
 /**
  * Fetch history for specified channel in defined
  * time frame
  */
 + (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate;
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate includeTimeToken:(BOOL)shouldIncludeTimeToken;
 + (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate to:(PNDate *)endDate;
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate to:(PNDate *)endDate includeTimeToken:(BOOL)shouldIncludeTimeToken;
 
 /**
  * Same as +requestHistoryForChannel:from:to: but allow to specify
@@ -469,25 +464,33 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * If you need to track history loading events from many places, use
  * PNObservationCenter methods for this purpose.
  */
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
                               to:(PNDate *)endDate
+             withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
+                              to:(PNDate *)endDate
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 
 /**
  * Fetch history for specified channel in defined
  * time frame with specified limits
  */
-+ (void)requestHistoryForChannel:(PNChannel *)channel
-                            from:(PNDate *)startDate
-                           limit:(NSUInteger)limit;
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate limit:(NSUInteger)limit;
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate limit:(NSUInteger)limit includeTimeToken:(BOOL)shouldIncludeTimeToken;
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate to:(PNDate *)endDate limit:(NSUInteger)limit;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
                               to:(PNDate *)endDate
-                           limit:(NSUInteger)limit;
+                           limit:(NSUInteger)limit
+                includeTimeToken:(BOOL)shouldIncludeTimeToken;
 
 /**
  * Same as +requestHistoryForChannel:from:to:limit: but allow to specify
@@ -504,8 +507,19 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
+                           limit:(NSUInteger)limit
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
+             withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
                               to:(PNDate *)endDate
                            limit:(NSUInteger)limit
+             withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
+                              to:(PNDate *)endDate
+                           limit:(NSUInteger)limit
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 
 /**
@@ -513,15 +527,23 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * time frame, limit and whether response should
  * be inverted or not
  */
++ (void)requestHistoryForChannel:(PNChannel *)channel from:(PNDate *)startDate limit:(NSUInteger)limit reverseHistory:(BOOL)shouldReverseMessageHistory;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
+                           limit:(NSUInteger)limit
+                  reverseHistory:(BOOL)shouldReverseMessageHistory
+                includeTimeToken:(BOOL)shouldIncludeTimeToken;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
+                              to:(PNDate *)endDate
                            limit:(NSUInteger)limit
                   reverseHistory:(BOOL)shouldReverseMessageHistory;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
                               to:(PNDate *)endDate
                            limit:(NSUInteger)limit
-                  reverseHistory:(BOOL)shouldReverseMessageHistory;
+                  reverseHistory:(BOOL)shouldReverseMessageHistory
+                includeTimeToken:(BOOL)shouldIncludeTimeToken;
 
 /**
  * Same as +requestHistoryForChannel:from:to:limit:reverseHistory:
@@ -539,9 +561,22 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 + (void)requestHistoryForChannel:(PNChannel *)channel
                             from:(PNDate *)startDate
+                           limit:(NSUInteger)limit
+                  reverseHistory:(BOOL)shouldReverseMessageHistory
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
+             withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
                               to:(PNDate *)endDate
                            limit:(NSUInteger)limit
                   reverseHistory:(BOOL)shouldReverseMessageHistory
+             withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
++ (void)requestHistoryForChannel:(PNChannel *)channel
+                            from:(PNDate *)startDate
+                              to:(PNDate *)endDate
+                           limit:(NSUInteger)limit
+                  reverseHistory:(BOOL)shouldReverseMessageHistory
+                includeTimeToken:(BOOL)shouldIncludeTimeToken
              withCompletionBlock:(PNClientHistoryLoadHandlingBlock)handleBlock;
 
 
@@ -561,8 +596,7 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
  * If you need to track history loading events from many places, use
  * PNObservationCenter methods for this purpose.
  */
-+ (void)requestParticipantsListForChannel:(PNChannel *)channel
-                      withCompletionBlock:(PNClientParticipantsHandlingBlock)handleBlock;
++ (void)requestParticipantsListForChannel:(PNChannel *)channel withCompletionBlock:(PNClientParticipantsHandlingBlock)handleBlock;
 
 
 #pragma mark - Instance methods

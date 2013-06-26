@@ -14,6 +14,17 @@
 #import "PNMessage.h"
 
 
+#pragma mark - Static
+
+// Stores reference on key under which message body is stored in case if API return
+// time token for message
+static NSString * const kPNMessageBodyKey = @"message";
+
+// Stores reference on key under which message timetoken is stired in case if API return
+// time token for message
+static NSString * const kPNMessageTimeTokenKey = @"timetoken";
+
+
 #pragma mark Class forward
 
 @class PNChannel, PNDate;
@@ -36,7 +47,6 @@
 // Stores reference on date when this message was received
 // (doesn't work for history, only for presence events)
 @property (nonatomic, strong) PNDate *receiveDate;
-
 
 
 #pragma mark - Class methods

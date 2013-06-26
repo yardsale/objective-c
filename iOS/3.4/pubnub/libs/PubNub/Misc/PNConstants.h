@@ -40,10 +40,6 @@ static NSString * const kPNDefaultOriginHost = @"ios.pubnub.com";
 #elif __MAC_OS_X_VERSION_MIN_REQUIRED
 static NSString * const kPNDefaultOriginHost = @"macos.pubnub.com";
 #endif
-static BOOL const kPNSecureConnectionByDefault = YES;
-static BOOL const kPNShouldAutoReconnectClientByDefault = YES;
-static BOOL const kPNShouldReduceSecurityLevelOnErrorByDefault = YES;
-static BOOL const kPNCanIgnoreSecureConnectionRequirementByDefault = NO;
 
 // Stores how many times request can be rescheduled because
 // of stream errors

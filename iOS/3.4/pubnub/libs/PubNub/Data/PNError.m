@@ -161,6 +161,11 @@
     }
 }
 
+- (void)updateAssociatedObject:(id)associatedObject {
+
+    _associatedObject = associatedObject;
+}
+
 - (NSString *)localizedDescription {
     
     NSString *errorDescription = self.errorMessage;

@@ -3321,8 +3321,8 @@ didReceiveNetworkLatency:(double)latency
 - (void)serviceChannel:(PNServiceChannel *)channel
     didFailMessageSend:(PNMessage *)message
              withError:(PNError *)error {
-    
-    error.associatedObject = message;
+
+    [error updateAssociatedObject:message];
     [self notifyDelegateAboutMessageSendingFailedWithError:error];
 }
 

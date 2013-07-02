@@ -19,5 +19,14 @@
 
 #pragma mark -
 
+#pragma mark - Instance methods
+
+/**
+ * Force PNError to change it's associated object to new one
+ */
+- (void)updateAssociatedObject:(id)associatedObject;
+
+#pragma mark -
+
 
 @end

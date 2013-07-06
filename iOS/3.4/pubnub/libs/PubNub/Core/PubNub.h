@@ -68,6 +68,11 @@
 #pragma mark - Client configuration
 
 /**
+ * Retrieve copy of configuration which is currently used by PubNub client for operation.
+ */
++ (PNConfiguration *)currentConfiguration;
+
+/**
  * Perform initial configuration or update existing one
  * If PubNub was previously configured, it will perform
  * "hard reset".

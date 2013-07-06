@@ -16,7 +16,7 @@
 
 #pragma mark Private interface methods
 
-@interface PNConfiguration ()
+@interface PNConfiguration () <NSCopying>
 
 
 #pragma mark - Properties
@@ -179,12 +179,36 @@
         // Checking whether user changed origin host from default
         // or not
         if ([self.origin isEqualToString:kPNDefaultOriginHost]) {
+
             PNLog(PNLogGeneralLevel, self, @"\n{WARN} Before running in production, please contact support@pubnub.com for your custom origin.\nPlease set the origin from %@ to IUNDERSTAND.pubnub.com to remove this warning.", self.origin);
         }
     }
     
     
     return self;
+}
+
+- (id)copyWithZone:(NSZone *)zone {
+
+    PNConfiguration *configuration = [[[self class] allocWithZone:zone] initWithOrigin:self.origin
+                                                                            publishKey:self.publishKey
+                                                                          subscribeKey:self.subscriptionKey
+                                                                             secretKey:self.secretKey
+                                                                             cipherKey:self.cipherKey
+                                                                      authorizationKey:self.authorizationKey];
+    configuration.realOrigin = self.realOrigin;
+    configuration.useSecureConnection = self.shouldUseSecureConnection;
+    configuration.autoReconnectClient = self.shouldAutoReconnectClient;
+    configuration.reduceSecurityLevelOnError = self.shouldReduceSecurityLevelOnError;
+    configuration.ignoreSecureConnectionRequirement = self.canIgnoreSecureConnectionRequirement;
+    configuration.resubscribeOnConnectionRestore = self.shouldResubscribeOnConnectionRestore;
+    configuration.restoreSubscriptionFromLastTimeToken = self.shouldRestoreSubscriptionFromLastTimeToken;
+    configuration.acceptCompressedResponse = self.shouldAcceptCompressedResponse;
+    configuration.nonSubscriptionRequestTimeout = self.nonSubscriptionRequestTimeout;
+    configuration.subscriptionRequestTimeout = self.subscriptionRequestTimeout;
+
+
+    return configuration;
 }
 
 - (BOOL)requiresConnectionResetWithConfiguration:(PNConfiguration *)configuration {
@@ -237,7 +261,8 @@
 
 - (NSString *)description {
     
-    return [NSString stringWithFormat:@"\nConfiguration for: %@ (secured: %@)\nPublish key (Required): %@\nSubscription key (Required): %@\nSecret key (Required): %@\nCipher key: %@",
+    return [NSString stringWithFormat:@"\n(%p) Configuration for: %@ (secured: %@)\nPublish key (Required): %@\nSubscription key (Required): %@\nSecret key (Required): %@\nCipher key: %@",
+            self,
             self.origin,
             self.shouldUseSecureConnection?@"YES":@"NO",
             ([self.publishKey length] > 0)?self.publishKey:@"-missing-",

@@ -745,6 +745,11 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
 
 #pragma mark - Client configuration methods
 
++ (PNConfiguration *)currentConfiguration {
+
+    return [[self sharedInstance].configuration copy];
+}
+
 + (void)setConfiguration:(PNConfiguration *)configuration {
 
     [self setupWithConfiguration:configuration andDelegate:[self sharedInstance].delegate];

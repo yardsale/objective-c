@@ -76,20 +76,32 @@ static NSUInteger const kPNRequestQueueNextRequestIndex = 0;
 #pragma mark - Queue management
 
 - (BOOL)enqueueRequest:(PNBaseRequest *)request {
-    
+
+    return [self enqueueRequest:request outOfOrder:NO];
+}
+
+- (BOOL)enqueueRequest:(PNBaseRequest *)request outOfOrder:(BOOL)shouldEnqueueRequestOutOfOrder {
+
     BOOL requestScheduled = NO;
-    
+
     // Searching for existing request entry
     NSPredicate *sameObjectsSearch = [NSPredicate predicateWithFormat:@"identifier = %@ && processing = %@",
                                       request.identifier,
                                       @NO];
     if ([[self.query filteredArrayUsingPredicate:sameObjectsSearch] count] == 0) {
-        
-        [self.query addObject:request];
+
+        if (shouldEnqueueRequestOutOfOrder) {
+
+            [self.query insertObject:request atIndex:0];
+        }
+        else {
+
+            [self.query addObject:request];
+        }
         requestScheduled = YES;
     }
-    
-    
+
+
     return requestScheduled;
 }
 
@@ -206,7 +218,7 @@ static NSUInteger const kPNRequestQueueNextRequestIndex = 0;
     PNBaseRequest *currentRequest = [self dequeRequestWithIdentifier:requestIdentifier];
     if (currentRequest != nil) {
 
-        // Forward request processing cancelation to the delegate
+        // Forward request processing cancellation to the delegate
         [self.delegate requestsQueue:self didCancelRequest:currentRequest];
     }
 }

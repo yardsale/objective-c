@@ -308,7 +308,14 @@
 
 - (BOOL)shouldStoreRequest:(PNBaseRequest *)request {
 
-    return YES;
+    BOOL shouldStoreRequest = YES;
+    if ([request isKindOfClass:[PNTimeTokenRequest class]]) {
+
+        shouldStoreRequest = request.isSendingByUserRequest;
+    }
+
+
+    return shouldStoreRequest;
 }
 
 

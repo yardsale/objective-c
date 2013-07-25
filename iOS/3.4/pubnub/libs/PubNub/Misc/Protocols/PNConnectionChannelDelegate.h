@@ -62,6 +62,17 @@
     willDisconnectFromOrigin:(NSString *)host
                 withError:(PNError *)error;
 
+/**
+ * Sent to the PubNub client when connection channel is about to resume it's operation
+ */
+- (void)connectionWillResume:(PNConnectionChannel *)channel;
+
+/**
+ * Sent to the PubNub client when connection channel resumed it's operation
+ * and ready to process requests
+ */
+- (void)connectionChannelDidResume:(PNConnectionChannel *)channel;
+
 
 #pragma mark -
 

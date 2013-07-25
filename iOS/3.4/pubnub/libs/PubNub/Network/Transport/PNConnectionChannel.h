@@ -57,6 +57,9 @@ typedef enum _PNConnectionChannelState {
     // Channel is ready for work (connections
     // established and requests queue is ready)
     PNConnectionChannelStateConnected,
+
+    // Channel was suspended and can't be used at this moment
+    PNConnectionChannelStateSuspended,
     
     // Channel is disconnecting on user request
     // (for example: leave request for all channels)
@@ -130,6 +133,16 @@ typedef enum _PNConnectionChannelState {
  */
 - (void)disconnect;
 
+/**
+ * Stop any channel activity by request
+ */
+- (void)suspend;
+
+/**
+ * Resume channel activity and proceed execution of all suspended tasks
+ */
+- (void)resume;
+
 
 #pragma mark - Requests queue management methods
 
@@ -141,6 +154,14 @@ typedef enum _PNConnectionChannelState {
  *                           PubNub service completed request processing)
  */
 - (void)scheduleRequest:(PNBaseRequest *)request shouldObserveProcessing:(BOOL)shouldObserveProcessing;
+
+/**
+ * Same as scheduleRequest:shouldObserveProcessing: but allow to specify whether request should be put
+ * out of order (executed next) or not
+ */
+- (void)scheduleRequest:(PNBaseRequest *)request
+shouldObserveProcessing:(BOOL)shouldObserveProcessing
+             outOfOrder:(BOOL)shouldEnqueueRequestOutOfOrder;
 
 /**
  * Triggering requests queue execution (maybe it was locked

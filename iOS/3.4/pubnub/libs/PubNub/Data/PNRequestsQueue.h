@@ -43,6 +43,7 @@
  * or not
  */
 - (BOOL)enqueueRequest:(PNBaseRequest *)request;
+- (BOOL)enqueueRequest:(PNBaseRequest *)request outOfOrder:(BOOL)shouldEnqueueRequestOutOfOrder;
 - (void)removeRequest:(PNBaseRequest *)request;
 
 /**

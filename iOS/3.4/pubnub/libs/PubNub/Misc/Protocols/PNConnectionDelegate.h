@@ -36,6 +36,12 @@
 - (void)connection:(PNConnection *)connection didReconnectOnErrorToHost:(NSString *)hostName;
 
 /**
+ * Sent to the PubNub client when connection resumed it's operation
+ * and ready to process requests
+ */
+- (void)connectionDidResume:(PNConnection *)connection;
+
+/**
  * Sent to the delegate each time when new response
  * arrives via socket from remote server
  */

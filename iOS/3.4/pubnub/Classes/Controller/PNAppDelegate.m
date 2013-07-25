@@ -93,7 +93,7 @@
                                                 case PNSubscriptionProcessRestoredState:
 
                                                     PNLog(PNLogGeneralLevel, weakSelf,
-                                                          @"{BLOCK-P} PubNub client restores subscribed on channels: %@",
+                                                          @"{BLOCK-P} PubNub client restored subscription on channels: %@",
                                                           channels);
                                                     break;
                                             }

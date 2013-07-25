@@ -64,6 +64,11 @@
             shouldObservePresence:(BOOL)observePresence
 shouldUpdatePresenceObservingFlag:(BOOL)shouldUpdatePresenceObservingFlag;
 
+/**
+ * Allow to fetch largest timetoken inside channels group
+ */
++ (NSString *)largestTimetokenFromChannels:(NSArray *)channels;
+
 
 #pragma mark - Instance methods
 

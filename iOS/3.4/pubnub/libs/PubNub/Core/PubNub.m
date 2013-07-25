@@ -29,6 +29,7 @@
 #import "PNHereNowRequest.h"
 #import "PNCryptoHelper.h"
 #import "PNConnectionChannel+Protected.h"
+#import "UIApplication+PNAdditions.h"
 
 
 #pragma mark Static
@@ -193,6 +194,11 @@ static NSMutableArray *pendingInvocations = nil;
 
 #pragma mark - Instance methods
 
+/**
+ * On whether 'immediately' is set, request can be placed out of order into requests queue
+ */
+- (void)restoreSubscriptionOnMessageChannel:(PNMessagingChannel *)messagingChannel immediately:(BOOL)shouldRestoreImmediately;
+
 #pragma mark - Client connection management methods
 
 /**
@@ -236,6 +242,9 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
 
 #pragma mark - Handler methods
 
+- (void)handleApplicationDidEnterBackgroundState:(NSNotification *)notification;
+- (void)handleApplicationDidEnterForegroundState:(NSNotification *)notification;
+
 /**
  * Handling error which occurred while PubNub client
  * tried establish connection and lost internet connection
@@ -256,6 +265,13 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
  * Will prepare crypto helper it is possible
  */
 - (void)prepareCryptoHelper;
+
+/**
+ * Will help to subscribe/unsubscribe on/from all critical application-wide notifications which may affect
+ * client operation
+ */
+- (void)subscribeForNotifications;
+- (void)unsubscribeFromNotifications;
 
 /**
  * Check whether whether call to specific method should be postponed
@@ -448,6 +464,8 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
     _sharedInstance.reachability = nil;
     
     pendingInvocations = nil;
+
+    [_sharedInstance unsubscribeFromNotifications];
     _sharedInstance = nil;
 }
 
@@ -669,13 +687,20 @@ shouldObserveProcessing:(BOOL)shouldObserveProcessing;
             [PNConnection resetConnectionsPool];
             
             connectionsTerminationBlock();
-            
-            // Mark that client completely disconnected from origin server
-            // (synchronous disconnection was made to prevent asynchronous disconnect event
-            // from overlapping on connection event)
-            [self sharedInstance].state = PNPubNubClientStateDisconnected;
-            
-            [[self sharedInstance] connectionChannel:nil didDisconnectFromOrigin:[self sharedInstance].configuration.origin];
+
+            if ([self sharedInstance].state != PNPubNubClientStateDisconnected) {
+
+                // Mark that client completely disconnected from origin server
+                // (synchronous disconnection was made to prevent asynchronous disconnect event
+                // from overlapping on connection event)
+                [self sharedInstance].state = PNPubNubClientStateDisconnected;
+
+                [[self sharedInstance] connectionChannel:nil didDisconnectFromOrigin:[self sharedInstance].configuration.origin];
+            }
+            else {
+
+                [[self sharedInstance] handleLockingOperationComplete:YES];
+            }
         }
         else {
             
@@ -1981,9 +2006,12 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
                             [weakSelf handleConnectionErrorOnNetworkFailure];
                         }
                         else {
-                            
-                            PNError *connectionError = [PNError errorWithCode:kPNClientConnectionClosedOnInternetFailureError];
-                            [weakSelf notifyDelegateClientWillDisconnectWithError:connectionError];
+
+                            if (![self shouldRestoreConnection]) {
+
+                                PNError *connectionError = [PNError errorWithCode:kPNClientConnectionClosedOnInternetFailureError];
+                                [weakSelf notifyDelegateClientWillDisconnectWithError:connectionError];
+                            }
                             
                             weakSelf.state = PNPubNubClientStateDisconnectingOnNetworkError;
                             
@@ -1996,10 +2024,36 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
                 }
             }
         };
+
+        [self subscribeForNotifications];
     }
     
     
     return self;
+}
+
+- (void)restoreSubscriptionOnMessageChannel:(PNMessagingChannel *)messagingChannel immediately:(BOOL)shouldRestoreImmediately {
+
+    if ([messagingChannel canResubscribe]) {
+
+        self.asyncLockingOperationInProgress = NO;
+
+        [[self class] performAsyncLockingBlock:^{
+
+            [messagingChannel restoreSubscription:[self shouldRestoreSubscriptionWithLastTimeToken]
+                               restoreImmediately:shouldRestoreImmediately];
+        }
+                       postponedExecutionBlock:^{
+
+                           [self postponeMessagingChannelDidReconnect:messagingChannel];
+                       }];
+    }
+    else {
+
+        [self warmUpConnection:messagingChannel];
+
+        [self handleLockingOperationComplete:YES];
+    }
 }
 
 
@@ -2052,8 +2106,10 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 }
 
 - (void)warmUpConnection:(PNConnectionChannel *)connectionChannel {
-    
-    [self sendRequest:[PNTimeTokenRequest new] onChannel:connectionChannel shouldObserveProcessing:NO];
+
+    PNTimeTokenRequest *request = [PNTimeTokenRequest new];
+    request.sendingByUserRequest = NO;
+    [self sendRequest:request onChannel:connectionChannel shouldObserveProcessing:NO];
 }
 
 - (void)sendRequest:(PNBaseRequest *)request shouldObserveProcessing:(BOOL)shouldObserveProcessing {
@@ -2358,8 +2414,44 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
     }
 }
 
+- (void)connectionWillResume:(PNConnectionChannel *)channel {
+
+    if ([channel isKindOfClass:[PNMessagingChannel class]]) {
+
+        [self restoreSubscriptionOnMessageChannel:(PNMessagingChannel *)channel immediately:YES];
+    }
+}
+
+- (void)connectionChannelDidResume:(PNConnectionChannel *)channel {
+
+    if (![channel isKindOfClass:[PNMessagingChannel class]]) {
+
+        [self warmUpConnection:channel];
+    }
+}
+
 
 #pragma mark - Handler methods
+
+- (void)handleApplicationDidEnterBackgroundState:(NSNotification *)notification {
+
+    BOOL canRunInBackground = [self canRunInBackground];
+    if (!canRunInBackground) {
+
+        [self.messagingChannel suspend];
+        [self.serviceChannel suspend];
+    }
+}
+
+- (void)handleApplicationDidEnterForegroundState:(NSNotification *)notification {
+
+    BOOL canRunInBackground = [self canRunInBackground];
+    if (!canRunInBackground) {
+
+        [self.messagingChannel resume];
+        [self.serviceChannel resume];
+    }
+}
 
 - (void)handleConnectionErrorOnNetworkFailure {
 
@@ -2424,6 +2516,25 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
                   helperInitializationError);
         }
     }
+}
+
+- (void)subscribeForNotifications {
+
+    [self unsubscribeFromNotifications];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleApplicationDidEnterBackgroundState:)
+                                                 name:UIApplicationDidEnterBackgroundNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleApplicationDidEnterForegroundState:)
+                                                 name:UIApplicationWillEnterForegroundNotification
+                                               object:nil];
+}
+
+- (void)unsubscribeFromNotifications {
+
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationWillEnterForegroundNotification object:nil];
 }
 
 - (BOOL)shouldPostponeMethodCall {
@@ -2823,6 +2934,19 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
     [[NSNotificationCenter defaultCenter] postNotificationName:notificationName object:self userInfo:object];
 }
 
+- (BOOL)canRunInBackground {
+
+    BOOL canRunInBackground = [UIApplication canRunInBackground];
+
+    if ([self.delegate respondsToSelector:@selector(shouldRunClientInBackgournd)]) {
+
+        canRunInBackground = [self.delegate shouldRunClientInBackgournd];
+    }
+
+
+    return canRunInBackground;
+}
+
 - (BOOL)shouldRestoreConnection {
     
     BOOL shouldRestoreConnection = self.configuration.shouldAutoReconnectClient;
@@ -2974,26 +3098,8 @@ withCompletionHandlingBlock:(PNClientChannelSubscriptionHandlerBlock)handlerBloc
 }
 
 - (void)messagingChannelDidReconnect:(PNMessagingChannel *)messagingChannel {
-    
-    if ([messagingChannel canResubscribe]) {
 
-        self.asyncLockingOperationInProgress = NO;
-
-        [[self class] performAsyncLockingBlock:^{
-            
-            [messagingChannel restoreSubscription:[self shouldRestoreSubscriptionWithLastTimeToken]];
-        }
-                       postponedExecutionBlock:^{
-                           
-                           [self postponeMessagingChannelDidReconnect:messagingChannel];
-                       }];
-    }
-    else {
-        
-        [self warmUpConnection:messagingChannel];
-        
-        [self handleLockingOperationComplete:YES];
-    }
+    [self restoreSubscriptionOnMessageChannel:messagingChannel immediately:NO];
 }
 
 - (void)postponeMessagingChannelDidReconnect:(PNMessagingChannel *)messagingChannel {

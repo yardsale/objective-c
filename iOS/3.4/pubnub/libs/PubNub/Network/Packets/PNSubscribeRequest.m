@@ -17,6 +17,7 @@
 #import "PNBaseRequest+Protected.h"
 #import "PubNub+Protected.h"
 #import "PNConstants.h"
+#import "PNChannel+Protected.h"
 
 
 #pragma mark Private interface methods
@@ -83,9 +84,7 @@
         // Retrieve largest update time token from set of
         // channels (sorting to make larger token to be at
         // the end of the list
-        NSSortDescriptor *tokenSortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"updateTimeToken" ascending:YES];
-        NSArray *timeTokens = [[channels sortedArrayUsingDescriptors:@[tokenSortDescriptor]] valueForKey:@"updateTimeToken"];
-        self.updateTimeToken = [timeTokens lastObject];
+        self.updateTimeToken = [PNChannel largestTimetokenFromChannels:channels];
     }
     
     

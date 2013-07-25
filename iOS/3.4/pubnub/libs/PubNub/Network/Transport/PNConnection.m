@@ -92,6 +92,8 @@ static int const kPNStreamBufferSize = 32768;
 // because of error or not
 @property (nonatomic, assign, getter = isReconnectingOnError) BOOL reconnectingOnError;
 
+@property (nonatomic, getter = isConnectionSuspended) BOOL connectionSuspended;
+
 // Stores reference on response deserializer which will parse
 // response into objects array and update provided data to
 // insert offset on amount of parsed data
@@ -774,6 +776,7 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
 - (void)closeStreams {
 
+    self.connectionSuspended = NO;
     self.closingConnection = YES;
 
     // Clean up cached data
@@ -786,7 +789,7 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 }
 
 - (BOOL)connect {
-    
+
     self.closingConnection = NO;
     BOOL isStreamOpened = NO;
 
@@ -838,6 +841,8 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
 - (void)reconnect {
 
+    self.connectionSuspended = NO;
+
     // Marking that connection instance is reconnecting
     // now and after last connection will be closed should
     // automatically renew connection
@@ -870,9 +875,31 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
     PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" \"%@\" is closing connection", self.name);
 
+    self.connectionSuspended = NO;
     self.reconnectingOnError = NO;
     self.reconnecting = NO;
     [self closeStreams];
+}
+
+- (void)suspend {
+
+    if (!self.isConnectionSuspended && [self isConnected]) {
+
+        PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" Suspend \"%@\" connection sockets", self.name);
+
+        self.connectionSuspended = YES;
+        [self disconnectStreams];
+    }
+}
+
+- (void)resume {
+
+    if (self.isConnectionSuspended) {
+
+        PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" Resume \"%@\" connection sockets", self.name);
+
+        [self connect];
+    }
 }
 
 
@@ -941,7 +968,7 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
 - (void)destroyReadStream:(CFReadStreamRef)readStream {
 
-    BOOL shouldCloseStream = self.readStreamState == PNSocketStreamConnected;
+    BOOL shouldCloseStream = self.readStreamState == PNSocketStreamConnected || self.readStreamState == PNSocketStreamConnecting;
     self.readStreamState = PNSocketStreamNotConfigured;
 
     // Destroying input buffer
@@ -963,12 +990,12 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
         PNCFRelease(&readStream);
         self.socketReadStream = NULL;
+    }
 
 
-        if (shouldCloseStream) {
+    if (shouldCloseStream) {
 
-            [self handleStreamClose];
-        }
+        [self handleStreamClose];
     }
 }
 
@@ -1146,7 +1173,7 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
 - (void)destroyWriteStream:(CFWriteStreamRef)writeStream {
 
-    BOOL shouldCloseStream = self.writeStreamState == PNSocketStreamConnected;
+    BOOL shouldCloseStream = self.writeStreamState == PNSocketStreamConnected || self.writeStreamState == PNSocketStreamConnecting;;
     self.writeStreamState = PNSocketStreamNotConfigured;
     self.writeStreamCanHandleData = NO;
 
@@ -1177,11 +1204,11 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
         PNCFRelease(&writeStream);
         self.socketWriteStream = NULL;
+    }
 
-        if (shouldCloseStream) {
+    if (shouldCloseStream) {
 
-            [self handleStreamClose];
-        }
+        [self handleStreamClose];
     }
 }
 
@@ -1305,6 +1332,11 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
         self.reconnecting = NO;
         [self.delegate connection:self didConnectToHost:self.configuration.origin];
 
+        if (self.isConnectionSuspended) {
+
+            self.connectionSuspended = NO;
+            [self.delegate connectionDidResume:self];
+        }
 
         if (self.isReconnectingOnError) {
 
@@ -1334,9 +1366,12 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
         }
         else {
 
-            PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" Notify delegate that \"%@\" disconnected", self.name);
+            if (!self.isConnectionSuspended) {
 
-            [self.delegate connection:self didDisconnectFromHost:self.configuration.origin];
+                PNLog(PNLogCommunicationChannelLayerInfoLevel, self, @" Notify delegate that \"%@\" disconnected", self.name);
+
+                [self.delegate connection:self didDisconnectFromHost:self.configuration.origin];
+            }
         }
     }
 }
@@ -1515,7 +1550,9 @@ void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type, void *
 
         if (shouldNotifyDelegate) {
 
-            if (shouldCloseConnection) {
+            if (shouldCloseConnection &&
+                self.readStreamState != PNSocketStreamConnecting &&
+                self.writeStreamState != PNSocketStreamConnecting) {
 
                 if (!self.isClosingConnection) {
 

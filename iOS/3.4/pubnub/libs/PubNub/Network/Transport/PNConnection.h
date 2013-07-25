@@ -94,6 +94,16 @@
  */
 - (void)closeConnection;
 
+/**
+ * Suspend sockets (basically they will be closed w/o PNConnection instance destroy)
+ */
+- (void)suspend;
+
+/**
+ * Restore default sockets functions (sockets connection will be up again)
+ */
+- (void)resume;
+
 #pragma mark -
 
 

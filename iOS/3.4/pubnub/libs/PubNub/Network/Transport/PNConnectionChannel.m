@@ -43,6 +43,8 @@
 @property (nonatomic, strong) NSMutableDictionary *storedRequests;
 
 @property (nonatomic, strong) NSTimer *timeoutTimer;
+;
+@property (nonatomic, getter = isConnectionSuspended) BOOL connectionSuspended;
 
 
 #pragma mark - Instance methods
@@ -137,6 +139,16 @@
 }
 
 - (void)connect {
+
+    // Check whether connection has been suspended before or not
+    // (in case if it was suspended, it will notify delegate about resuming)
+    if (self.isConnectionSuspended) {
+
+        [self.delegate connectionWillResume:self];
+    }
+
+    self.connectionSuspended = NO;
+
     
     // Check whether is able to connect or not
     if([self.connection connect]) {
@@ -160,10 +172,41 @@
 }
 
 - (void)disconnect {
-    
+
+    self.connectionSuspended = NO;
     self.state = PNConnectionChannelStateDisconnecting;
     
     [self.connection closeConnection];
+}
+
+- (void)suspend {
+
+    if (![self isSuspended] && [self isConnected]) {
+
+        self.state = PNConnectionChannelStateSuspended;
+
+        [self stopTimeoutTimerForRequest:nil];
+        [self unscheduleNextRequest];
+
+        self.connectionSuspended = YES;
+        [self.connection suspend];
+    }
+}
+
+- (void)resume {
+
+    if ([self isSuspended]) {
+
+        [self.delegate connectionWillResume:self];
+
+        [self.connection resume];
+        [self scheduleNextRequest];
+    }
+}
+
+- (BOOL)isSuspended {
+
+    return self.isConnectionSuspended && self.state == PNConnectionChannelStateSuspended;
 }
 
 - (BOOL)isWaitingRequestCompletion:(NSString *)requestIdentifier {
@@ -249,19 +292,27 @@
 #pragma mark - Requests queue management methods
 
 - (void)scheduleRequest:(PNBaseRequest *)request shouldObserveProcessing:(BOOL)shouldObserveProcessing {
-    
-    if([self.requestsQueue enqueueRequest:request]) {
-        
+
+    [self scheduleRequest:request shouldObserveProcessing:shouldObserveProcessing outOfOrder:NO];
+}
+
+- (void)scheduleRequest:(PNBaseRequest *)request
+shouldObserveProcessing:(BOOL)shouldObserveProcessing
+             outOfOrder:(BOOL)shouldEnqueueRequestOutOfOrder {
+
+    if([self.requestsQueue enqueueRequest:request outOfOrder:shouldEnqueueRequestOutOfOrder]) {
+
         if (shouldObserveProcessing) {
 
             [self.observedRequests setValue:request forKey:request.shortIdentifier];
         }
 
+
         if ([self shouldStoreRequest:request]) {
 
             [self.storedRequests setValue:request forKey:request.shortIdentifier];
         }
-        
+
         [self scheduleNextRequest];
     }
 }
@@ -336,6 +387,14 @@
     // Launch communication process on sockets by triggering
     // requests queue processing
     [self scheduleNextRequest];
+}
+
+- (void)connectionDidResume:(PNConnection *)connection {
+
+    self.state = PNConnectionChannelStateConnected;
+    self.connectionSuspended = NO;
+
+    [self.delegate connectionChannelDidResume:self];
 }
 
 - (void)connection:(PNConnection *)connection didReconnectOnErrorToHost:(NSString *)hostName {

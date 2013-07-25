@@ -81,6 +81,8 @@
  * set that it should resubscribe
  */
 - (void)restoreSubscription:(BOOL)shouldRestoreResubscriptionFromLastTimeToken;
+- (void)restoreSubscription:(BOOL)shouldRestoreResubscriptionFromLastTimeToken
+         restoreImmediately:(BOOL)shouldRestoreImmediately;
 
 /**
  * Will resubscribe on channels to receive messages from

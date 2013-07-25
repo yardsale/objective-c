@@ -23,6 +23,11 @@
 #pragma mark - Instance methods
 
 /**
+ * Check whether channels has been suspended before or not
+ */
+- (BOOL)isSuspended;
+
+/**
  * Returns whether communication channel is waiting for
  * request processing completion from backebd or not
  */

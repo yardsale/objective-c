@@ -62,6 +62,9 @@
 @property (nonatomic, assign, getter = isEnablingPresence) BOOL enablingPresence;
 
 @property (nonatomic, strong) NSTimer *idleTimer;
+@property (nonatomic, strong) NSDate *idleTimerFireDate;
+
+@property (nonatomic, strong) NSDate *channelSuspensionDate;
 
 @property (nonatomic, assign, getter = isReconnecting) BOOL reconnecting;
 
@@ -92,6 +95,13 @@
 
 
 #pragma mark - Channels management
+
+/**
+ * Will try to resubscribe on channels to which it was subscribed before
+ * (mostly this method will be used to restore subscription because of new request
+ * failure)
+ */
+- (void)subscribeOnPreviousChannels;
 
 /**
  * Same function as -unsubscribeFromChannelsWithPresenceEvent:
@@ -187,6 +197,8 @@
  */
 - (void)startChannelIdleTimer;
 - (void)stopChannelIdleTimer;
+- (void)pauseChannelIdleTimer;
+- (void)resumeChannelIdleTimer;
 
 /**
  * Retrieve full list of channels on which channel should subscribe
@@ -284,7 +296,7 @@
     
     self.reconnecting = shouldHandleReconnectEvent;
     
-    // Forward to ther super class
+    // Forward to the super class
     [super reconnect];
 }
 
@@ -305,6 +317,28 @@
         [self purgeObservedRequestsPool];
         [self purgeStoredRequestsPool];
         [self clearScheduledRequestsQueue];
+    }
+}
+
+- (void)suspend {
+
+    if (![self isSuspended] && [self isConnected]) {
+
+        // Forward to the super class
+        [super suspend];
+
+        [self pauseChannelIdleTimer];
+    }
+}
+
+- (void)resume {
+
+    if ([self isSuspended]) {
+
+        // Forward to the super class
+        [super resume];
+
+        [self resumeChannelIdleTimer];
     }
 }
 
@@ -399,6 +433,12 @@
 
 - (void)restoreSubscription:(BOOL)shouldRestoreResubscriptionFromLastTimeToken {
 
+    [self restoreSubscription:shouldRestoreResubscriptionFromLastTimeToken restoreImmediately:NO];
+}
+
+- (void)restoreSubscription:(BOOL)shouldRestoreResubscriptionFromLastTimeToken
+         restoreImmediately:(BOOL)shouldRestoreImmediately {
+
     if ([self.subscribedChannelsSet count]) {
 
         if (!shouldRestoreResubscriptionFromLastTimeToken) {
@@ -407,7 +447,7 @@
             [self.subscribedChannelsSet makeObjectsPerformSelector:@selector(resetUpdateTimeToken)];
         }
 
-        self.restoringSubscription = YES;
+        self.restoringSubscription = !shouldRestoreImmediately;
 
 
         PNSubscribeRequest *resubscribeRequest = [PNSubscribeRequest subscribeRequestForChannels:[self.subscribedChannelsSet allObjects]
@@ -420,7 +460,9 @@
             // server side before subscribe on new channels
             resubscribeRequest.closeConnection = YES;
         }
-        [self scheduleRequest:resubscribeRequest shouldObserveProcessing:!shouldRestoreResubscriptionFromLastTimeToken];
+        [self scheduleRequest:resubscribeRequest
+      shouldObserveProcessing:!shouldRestoreResubscriptionFromLastTimeToken
+                   outOfOrder:shouldRestoreImmediately];
 
     }
 }
@@ -500,6 +542,22 @@
 - (NSArray *)unsubscribeFromChannelsWithPresenceEvent:(BOOL)withPresenceEvent {
 
     return [self unsubscribeFromChannelsWithPresenceEvent:withPresenceEvent byUserRequest:YES];
+}
+
+- (void)subscribeOnPreviousChannels {
+
+    NSArray *channelsList = [self.subscribedChannelsSet allObjects];
+    BOOL shouldObserve = [[PNChannel largestTimetokenFromChannels:channelsList] isEqualToString:@"0"];
+    PNSubscribeRequest *resubscribeRequest = [PNSubscribeRequest subscribeRequestForChannels:channelsList byUserRequest:NO];
+
+    // Check whether messaging channel is connected or not
+    if ([self isConnected]) {
+
+        // Mark that we should close connection to terminate long-poll request on
+        // server side before subscribe on new channels
+        resubscribeRequest.closeConnection = YES;
+    }
+    [self scheduleRequest:resubscribeRequest shouldObserveProcessing:shouldObserve outOfOrder:YES];
 }
 
 - (NSArray *)unsubscribeFromChannelsWithPresenceEvent:(BOOL)withPresenceEvent
@@ -949,6 +1007,7 @@
 
         [self handleSubscribeDidFailForChannels:((PNSubscribeRequest *) request).channels withError:error];
     }
+    [self subscribeOnPreviousChannels];
 
 
     [self destroyRequest:request];
@@ -988,6 +1047,43 @@
 
         [self.idleTimer invalidate];
         self.idleTimer = nil;
+    }
+}
+
+- (void)pauseChannelIdleTimer {
+
+    if ([self.idleTimer isValid]) {
+
+        self.idleTimerFireDate = self.idleTimer.fireDate;
+        self.channelSuspensionDate = [NSDate date];
+        [self.idleTimer invalidate];
+        self.idleTimer = nil;
+    }
+    else {
+
+        self.idleTimerFireDate = nil;
+        self.channelSuspensionDate = nil;
+    }
+}
+
+- (void)resumeChannelIdleTimer {
+
+    if (self.idleTimerFireDate) {
+
+        NSTimeInterval timeLeftBeforeSuspension = ABS([self.channelSuspensionDate timeIntervalSinceDate:self.idleTimerFireDate]);
+
+        // Adding some time to let connection channel awake from suspension
+        timeLeftBeforeSuspension += 10.0f;
+
+        self.idleTimer = [NSTimer timerWithTimeInterval:timeLeftBeforeSuspension
+                                                 target:self
+                                               selector:@selector(handleIdleTimer:)
+                                               userInfo:nil
+                                                repeats:NO];
+        [[NSRunLoop currentRunLoop] addTimer:self.idleTimer forMode:NSRunLoopCommonModes];
+
+        self.idleTimerFireDate = nil;
+        self.channelSuspensionDate = nil;
     }
 }
 
